@@ -13,6 +13,7 @@ import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, StatusRow } fr
 import { upsertCardAction } from "@/lib/supabase/actions";
 import { ImagePreview } from "@/components/image-preview";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { optimizeImageForUpload } from "@/lib/image-optimizer";
 
 const aspectPresets: CardAspectRatio[] = ["9:16", "16:9", "1:1", "4:5", "custom"];
 const cropPresets: CardCropMode[] = ["cover", "contain", "crop"];
@@ -23,6 +24,27 @@ function clampHeight(value: number) {
 
 const toggleLabelClass = "flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85 transition hover:bg-white/8";
 const uploadLabelClass = "inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85 transition hover:bg-white/8";
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function extensionFromMimeType(type: string) {
+  switch (type) {
+    case "image/webp":
+      return "webp";
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+      return "jpg";
+    case "image/avif":
+      return "avif";
+    default:
+      return "jpg";
+  }
+}
 
 export function AdminCardEditor({
   open,
@@ -67,16 +89,24 @@ export function AdminCardEditor({
       toast.push({ title: "Supabase not configured", description: "Use a direct image URL for now." });
       return;
     }
-    const ext = file.name.split(".").pop() || "jpg";
+    const optimized = await optimizeImageForUpload(file, { maxDimension: 1600, quality: 0.82 });
+    const uploadFile = optimized.file;
+    const ext = extensionFromMimeType(uploadFile.type);
     const path = `cards/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("thumbnails").upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from("thumbnails").upload(path, uploadFile, {
+      upsert: true,
+      contentType: uploadFile.type
+    });
     if (error) {
       toast.push({ title: "Upload failed", description: error.message });
       return;
     }
     const { data } = supabase.storage.from("thumbnails").getPublicUrl(path);
     setThumbnailUrl(data.publicUrl);
-    toast.push({ title: "Image uploaded" });
+    toast.push({
+      title: optimized.changed ? "Image optimized and uploaded" : "Image uploaded",
+      description: optimized.changed ? `${formatFileSize(optimized.originalSize)} -> ${formatFileSize(optimized.optimizedSize)}` : undefined
+    });
   };
 
   const typeId = card?.type_id || types[0]?.id || "";

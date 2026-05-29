@@ -26,10 +26,19 @@ export async function createSupabaseServerClient() {
         return cookieStore.get(name)?.value;
       },
       set(name, value, options) {
-        cookieStore.set({ name, value, ...options });
+        try {
+          cookieStore.set({ name, value, ...options });
+        } catch {
+          // Cookie writes from server components are not allowed in Next.js.
+          // Middleware and route handlers already handle the writable auth flow.
+        }
       },
       remove(name, options) {
-        cookieStore.set({ name, value: "", ...options });
+        try {
+          cookieStore.set({ name, value: "", ...options });
+        } catch {
+          // Ignore write attempts in read-only server contexts.
+        }
       }
     }
   });
