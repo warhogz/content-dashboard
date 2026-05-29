@@ -1,15 +1,24 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentCard, StatusRow } from "@/lib/types";
 import { CardItem } from "@/components/card-item";
+import type { CardSortMode } from "@/components/public-dashboard";
 
 function cardDateValue(card: ContentCard) {
   return card.created_at ? new Date(card.created_at).getTime() : 0;
 }
 
-export function StatusSection({ status, cards }: { status: StatusRow; cards: ContentCard[]; }) {
+export function StatusSection({ status, cards, sortMode = "oldest" }: { status: StatusRow; cards: ContentCard[]; sortMode?: CardSortMode; }) {
   const visibleCards = cards
     .filter((card) => card.status_id === status.id && !card.is_hidden)
-    .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || cardDateValue(b) - cardDateValue(a) || b.sort_order - a.sort_order);
+    .sort((a, b) => {
+      const pinnedDiff = Number(b.is_pinned) - Number(a.is_pinned);
+      if (pinnedDiff !== 0) return pinnedDiff;
+
+      const dateDiff = sortMode === "newest" ? cardDateValue(b) - cardDateValue(a) : cardDateValue(a) - cardDateValue(b);
+      if (dateDiff !== 0) return dateDiff;
+
+      return sortMode === "newest" ? b.sort_order - a.sort_order : a.sort_order - b.sort_order;
+    });
 
   if (!status.show_on_public) return null;
 
