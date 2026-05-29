@@ -16,7 +16,7 @@ export function ImagePreview({ src, alt, aspectRatio, heightPx, cropMode }: { sr
   const previewHeight = Math.min(heightPx, 280);
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#2a0d18]", ratioClass(aspectRatio))} style={aspectRatio === "custom" ? { height: customHeight } : { minHeight: previewHeight }}>
+    <div className={cn("relative w-full overflow-hidden rounded-3xl border border-white/[0.06] bg-[#2a0d18]", ratioClass(aspectRatio))} style={aspectRatio === "custom" ? { height: customHeight } : { minHeight: previewHeight }}>
       {src ? (
         <img src={src} alt={alt} className={cn("absolute inset-0 h-full w-full", cropMode === "contain" ? "object-contain bg-[#1a0811]" : "object-cover")} />
       ) : (

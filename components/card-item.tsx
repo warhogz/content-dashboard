@@ -11,13 +11,13 @@ export function CardItem({ item, onCopy, onToggleHidden, onTogglePinned, compact
   const previewHeight = compact ? Math.min(item.height_px, 210) : Math.min(item.height_px, 340);
 
   return (
-    <Card className="panel-hover h-full overflow-hidden border-white/12 bg-white/[0.04]">
+    <Card className="panel-hover h-full overflow-hidden border-white/[0.05] bg-[linear-gradient(180deg,rgba(38,12,24,0.72),rgba(16,7,13,0.9))] shadow-[0_24px_80px_rgba(0,0,0,.28),0_0_0_1px_rgba(255,255,255,.015)_inset,0_0_36px_rgba(255,90,150,.05)] backdrop-blur-2xl">
       <CardContent className="p-0">
         <div className="flex h-full flex-col">
           <div className={compact ? "p-3" : "p-4"}>
             <ImagePreview src={item.thumbnail_url} alt={item.title} aspectRatio={item.aspect_ratio} heightPx={previewHeight} cropMode={item.crop_mode} />
           </div>
-          <div className={compact ? "flex flex-1 flex-col justify-between gap-3 border-t border-white/8 p-4 pt-4" : "flex flex-1 flex-col justify-between gap-4 border-t border-white/8 p-5 pt-4"}>
+          <div className={compact ? "flex flex-1 flex-col justify-between gap-3 border-t border-white/[0.05] p-4 pt-4" : "flex flex-1 flex-col justify-between gap-4 border-t border-white/[0.05] p-5 pt-4"}>
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <TypeBadge type={item.type} />
