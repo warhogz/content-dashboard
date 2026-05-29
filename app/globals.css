@@ -28,6 +28,10 @@ background-size:auto,20px 20px;
 mix-blend-mode:screen;
 opacity:.9;
 }
+body > *{
+position:relative;
+z-index:1;
+}
 a{text-decoration:none;color:inherit}
 ::selection{background:rgba(255,59,120,.25)}
 @keyframes fadeUp{

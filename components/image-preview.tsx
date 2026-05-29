@@ -12,8 +12,11 @@ function ratioClass(ratio: CardAspectRatio) {
 }
 
 export function ImagePreview({ src, alt, aspectRatio, heightPx, cropMode }: { src?: string | null; alt: string; aspectRatio: CardAspectRatio; heightPx: number; cropMode: CardCropMode; }) {
+  const customHeight = Math.min(heightPx, 360);
+  const previewHeight = Math.min(heightPx, 280);
+
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#2a0d18]", ratioClass(aspectRatio))} style={aspectRatio === "custom" ? { height: heightPx } : { minHeight: heightPx }}>
+    <div className={cn("relative w-full overflow-hidden rounded-3xl border border-white/10 bg-[#2a0d18]", ratioClass(aspectRatio))} style={aspectRatio === "custom" ? { height: customHeight } : { minHeight: previewHeight }}>
       {src ? (
         <img src={src} alt={alt} className={cn("absolute inset-0 h-full w-full", cropMode === "contain" ? "object-contain bg-[#1a0811]" : "object-cover")} />
       ) : (

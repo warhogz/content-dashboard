@@ -15,6 +15,10 @@ import { useToast } from "@/components/ui/toast";
 import { deleteCardAction, duplicateCardAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/actions";
 import { CardItem } from "@/components/card-item";
 
+function cardDateValue(card: ContentCard) {
+  return card.created_at ? new Date(card.created_at).getTime() : 0;
+}
+
 export function AdminWorkspace({
   initialData
 }: {
@@ -31,13 +35,15 @@ export function AdminWorkspace({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const filteredCards = useMemo(() => {
-    return data.cards.filter((card) => {
-      const text = `${card.title} ${card.subtitle || ""} ${card.notes || ""}`.toLowerCase();
-      const matchesSearch = text.includes(search.toLowerCase());
-      const matchesType = selectedType ? card.type_id === selectedType : true;
-      const matchesStatus = selectedStatus ? card.status_id === selectedStatus : true;
-      return matchesSearch && matchesType && matchesStatus;
-    });
+    return data.cards
+      .filter((card) => {
+        const text = `${card.title} ${card.subtitle || ""} ${card.notes || ""}`.toLowerCase();
+        const matchesSearch = text.includes(search.toLowerCase());
+        const matchesType = selectedType ? card.type_id === selectedType : true;
+        const matchesStatus = selectedStatus ? card.status_id === selectedStatus : true;
+        return matchesSearch && matchesType && matchesStatus;
+      })
+      .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || cardDateValue(b) - cardDateValue(a) || b.sort_order - a.sort_order);
   }, [data.cards, search, selectedType, selectedStatus]);
 
   const openNew = () => {
