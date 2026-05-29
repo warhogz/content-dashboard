@@ -15,6 +15,37 @@ function ok(message: string): ActionResult {
   return { ok: true, message };
 }
 
+function extractThumbnailStoragePath(thumbnailUrl: string | null | undefined) {
+  if (!thumbnailUrl) return null;
+
+  try {
+    const url = new URL(thumbnailUrl);
+    const match = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/thumbnails\/(.+)$/);
+    if (!match?.[1]) return null;
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+async function removeThumbnailFromStorage(
+  supabase: NonNullable<Awaited<ReturnType<typeof getService>>>,
+  thumbnailUrl: string | null | undefined,
+  context: Record<string, unknown>
+) {
+  const storagePath = extractThumbnailStoragePath(thumbnailUrl);
+  if (!storagePath) return;
+
+  const { error } = await supabase.storage.from("thumbnails").remove([storagePath]);
+  if (error) {
+    console.error("Failed to delete thumbnail from storage", {
+      ...context,
+      storagePath,
+      error
+    });
+  }
+}
+
 async function getService() {
   if (!hasSupabase()) return null;
   return createSupabaseServiceClient();
@@ -40,6 +71,7 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
   if (!supabase) return fail("Supabase не настроен");
 
   const id = String(formData.get("id") || "");
+  let previousThumbnailUrl: string | null = null;
   const payload = {
     title: String(formData.get("title") || "").trim(),
     type_id: String(formData.get("type_id") || ""),
@@ -60,8 +92,26 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
   }
 
   if (id) {
+    const { data: existingCard, error: existingCardError } = await supabase
+      .from("cards")
+      .select("thumbnail_url")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (existingCardError) {
+      console.error("Failed to load existing card thumbnail before update", existingCardError);
+    }
+
+    previousThumbnailUrl = existingCard?.thumbnail_url ?? null;
     const { error } = await supabase.from("cards").update(payload).eq("id", id);
     if (error) return fail(error.message);
+
+    if (previousThumbnailUrl && previousThumbnailUrl !== payload.thumbnail_url) {
+      await removeThumbnailFromStorage(supabase, previousThumbnailUrl, {
+        cardId: id,
+        reason: "card-thumbnail-replaced"
+      });
+    }
   } else {
     const sort_order = await nextSortOrder("cards", "status_id", payload.status_id);
     const { error } = await supabase.from("cards").insert({ ...payload, sort_order });
@@ -77,8 +127,30 @@ export async function deleteCardAction(formData: FormData): Promise<ActionResult
   if (!supabase) return fail("Supabase не настроен");
   const id = String(formData.get("id") || "");
   if (!id) return fail("Не найден ID");
+  const { data: cardData, error: cardReadError } = await supabase
+    .from("cards")
+    .select("thumbnail_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (cardReadError) {
+    console.error("Failed to load card thumbnail before delete", cardReadError);
+  }
+
+  const storagePath = extractThumbnailStoragePath(cardData?.thumbnail_url);
   const { error } = await supabase.from("cards").delete().eq("id", id);
   if (error) return fail(error.message);
+
+  if (storagePath) {
+    const { error: storageError } = await supabase.storage.from("thumbnails").remove([storagePath]);
+    if (storageError) {
+      console.error("Failed to delete thumbnail from storage", {
+        cardId: id,
+        storagePath,
+        error: storageError
+      });
+    }
+  }
   await refreshAll();
   return ok("Карточка удалена");
 }
