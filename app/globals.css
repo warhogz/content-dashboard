@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+--foreground:0 0% 98%;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+margin:0;
+color:white;
+background:
+radial-gradient(circle at 18% 12%, rgba(255,0,98,.16), transparent 24%),
+radial-gradient(circle at 82% 6%, rgba(203,52,110,.14), transparent 20%),
+radial-gradient(circle at 50% 100%, rgba(255,91,146,.09), transparent 28%),
+linear-gradient(180deg,#08050a 0%,#12030c 38%,#07040a 100%);
+min-height:100vh;
+overflow-x:hidden;
+}
+body::before{
+content:"";
+position:fixed; inset:0; pointer-events:none; z-index:0;
+background:
+radial-gradient(circle at 50% 0%, rgba(255,55,125,.08), transparent 35%),
+radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+background-size:auto,20px 20px;
+mix-blend-mode:screen;
+opacity:.9;
+}
+a{text-decoration:none;color:inherit}
+::selection{background:rgba(255,59,120,.25)}
+@keyframes fadeUp{
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
+}
+@layer components{
+.page-shell{@apply mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8}
+.panel{
+border:1px solid rgba(255,255,255,.08);
+background:linear-gradient(180deg,rgba(34,8,20,.68),rgba(15,5,12,.72));
+backdrop-filter:blur(22px);
+box-shadow:
+0 30px 100px rgba(0,0,0,.35),
+0 0 0 1px rgba(255,255,255,.02) inset,
+0 0 80px rgba(198,32,90,.08);
+border-radius:30px;
+}
+.panel-hover{
+transition:all .28s ease;
+}
+.panel-hover:hover{
+transform:translateY(-3px);
+border-color:rgba(255,120,170,.16);
+box-shadow:
+0 40px 120px rgba(0,0,0,.42),
+0 0 40px rgba(255,64,128,.10);
+}
+.label{
+font-size:11px;
+letter-spacing:.22em;
+text-transform:uppercase;
+color:rgba(255,255,255,.42)
+}
+.glow-border{
+position:relative;
+}
+.glow-border::before{
+content:"";
+position:absolute; inset:-1px;
+border-radius:inherit;
+padding:1px;
+background:linear-gradient(135deg,rgba(255,90,150,.24),rgba(255,255,255,.03),rgba(255,40,120,.18));
+-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+-webkit-mask-composite:xor;
+pointer-events:none;
+}
+}
