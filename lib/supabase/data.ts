@@ -2,7 +2,7 @@ import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getMockData } from "@/lib/mock-data";
 import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
 
-async function safeQuery<T>(query: () => Promise<any>) {
+async function safeQuery<T>(query: () => any) {
   try {
     const result = await query();
     if (result.error) {
@@ -23,8 +23,8 @@ export async function getDashboardData() {
   if (!supabase) return getMockData();
 
   const statuses = await safeQuery<StatusRow[]>(
-    () =>
-      supabase
+    async () =>
+      await supabase
         .from("statuses")
         .select("*")
         .eq("is_active", true)
@@ -32,8 +32,8 @@ export async function getDashboardData() {
   );
 
   const types = await safeQuery<CardTypeRow[]>(
-    () =>
-      supabase
+    async () =>
+      await supabase
         .from("card_types")
         .select("*")
         .eq("is_active", true)
@@ -41,8 +41,8 @@ export async function getDashboardData() {
   );
 
   const cards = await safeQuery<ContentCard[]>(
-    () =>
-      supabase
+    async () =>
+      await supabase
         .from("cards")
         .select("*, status:statuses(*), type:card_types(*)")
         .order("is_pinned", { ascending: false })
@@ -65,24 +65,24 @@ export async function getAdminData() {
   if (!supabase) return getMockData();
 
   const statuses = await safeQuery<StatusRow[]>(
-    () =>
-      supabase
+    async () =>
+      await supabase
         .from("statuses")
         .select("*")
         .order("sort_order")
   );
 
   const types = await safeQuery<CardTypeRow[]>(
-    () =>
-      supabase
+    async () =>
+      await supabase
         .from("card_types")
         .select("*")
         .order("sort_order")
   );
 
   const cards = await safeQuery<ContentCard[]>(
-    () =>
-      supabase
+    async () =>
+      await supabase
         .from("cards")
         .select("*, status:statuses(*), type:card_types(*)")
         .order("is_pinned", { ascending: false })
