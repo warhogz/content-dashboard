@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
-import type { CardAspectRatio, CardCropMode } from "@/lib/types";
+import type { CardAspectRatio, CardCropMode, ProjectKey } from "@/lib/types";
 
 type ActionResult = { ok: true; message: string } | { ok: false; message: string };
 
@@ -51,11 +51,15 @@ async function getService() {
   return createSupabaseServiceClient();
 }
 
-async function nextSortOrder(table: "cards" | "statuses" | "card_types", filterField?: string, filterValue?: string) {
+async function nextSortOrder(table: "cards" | "statuses" | "card_types", filters?: Record<string, string>) {
   const supabase = await getService();
   if (!supabase) return 1;
   let query = supabase.from(table).select("sort_order").order("sort_order", { ascending: false }).limit(1);
-  if (filterField && filterValue) query = query.eq(filterField, filterValue);
+  if (filters) {
+    for (const [field, value] of Object.entries(filters)) {
+      query = query.eq(field, value);
+    }
+  }
   const { data } = await query;
   return ((data?.[0]?.sort_order as number | undefined) ?? 0) + 1;
 }
@@ -74,6 +78,7 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
   let previousThumbnailUrl: string | null = null;
   const payload = {
     title: String(formData.get("title") || "").trim(),
+    project_key: (String(formData.get("project_key") || "main").trim() || "main") as ProjectKey,
     type_id: String(formData.get("type_id") || ""),
     status_id: String(formData.get("status_id") || ""),
     link: String(formData.get("link") || "").trim(),
@@ -91,10 +96,14 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
     return fail("Заполни название, тип, статус и ссылку");
   }
 
+  if (payload.project_key !== "main" && payload.project_key !== "mena") {
+    return fail("Некорректный проект");
+  }
+
   if (id) {
     const { data: existingCard, error: existingCardError } = await supabase
       .from("cards")
-      .select("thumbnail_url")
+      .select("thumbnail_url, status_id, project_key")
       .eq("id", id)
       .maybeSingle();
 
@@ -103,7 +112,21 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
     }
 
     previousThumbnailUrl = existingCard?.thumbnail_url ?? null;
-    const { error } = await supabase.from("cards").update(payload).eq("id", id);
+    const shouldResetSortOrder =
+      existingCard?.status_id !== payload.status_id ||
+      (existingCard?.project_key || "main") !== payload.project_key;
+
+    const nextPayload = shouldResetSortOrder
+      ? {
+          ...payload,
+          sort_order: await nextSortOrder("cards", {
+            status_id: payload.status_id,
+            project_key: payload.project_key
+          })
+        }
+      : payload;
+
+    const { error } = await supabase.from("cards").update(nextPayload).eq("id", id);
     if (error) return fail(error.message);
 
     if (previousThumbnailUrl && previousThumbnailUrl !== payload.thumbnail_url) {
@@ -113,7 +136,10 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
       });
     }
   } else {
-    const sort_order = await nextSortOrder("cards", "status_id", payload.status_id);
+    const sort_order = await nextSortOrder("cards", {
+      status_id: payload.status_id,
+      project_key: payload.project_key
+    });
     const { error } = await supabase.from("cards").insert({ ...payload, sort_order });
     if (error) return fail(error.message);
   }
@@ -161,8 +187,13 @@ export async function duplicateCardAction(formData: FormData): Promise<ActionRes
   const id = String(formData.get("id") || "");
   const { data, error } = await supabase.from("cards").select("*").eq("id", id).single();
   if (error || !data) return fail(error?.message || "Карточка не найдена");
-  const sort_order = await nextSortOrder("cards", "status_id", data.status_id);
+  const projectKey = (data.project_key || "main") as ProjectKey;
+  const sort_order = await nextSortOrder("cards", {
+    status_id: data.status_id,
+    project_key: projectKey
+  });
   const insert = {
+    project_key: projectKey,
     title: `${data.title} — копия`,
     type_id: data.type_id,
     status_id: data.status_id,

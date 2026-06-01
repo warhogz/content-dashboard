@@ -1,5 +1,6 @@
 export type CardCropMode = "cover" | "contain" | "crop";
 export type CardAspectRatio = "9:16" | "16:9" | "1:1" | "4:5" | "custom";
+export type ProjectKey = "main" | "mena";
 
 export interface StatusRow {
   id: string;
@@ -29,6 +30,7 @@ export interface CardTypeRow {
 export interface ContentCard {
   id: string;
   title: string;
+  project_key: ProjectKey;
   type_id: string;
   status_id: string;
   link: string;

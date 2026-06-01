@@ -7,11 +7,11 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  default: "bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 text-white hover:brightness-110 shadow-[0_18px_50px_rgba(244,63,94,0.30)]",
-  secondary: "bg-white/7 text-white hover:bg-white/10 border border-white/10",
-  ghost: "bg-transparent text-white/78 hover:bg-white/8 hover:text-white",
-  destructive: "bg-rose-500 text-white hover:bg-rose-600",
-  outline: "border border-white/10 bg-white/5 text-white hover:bg-white/9"
+  default: "text-white hover:brightness-110",
+  secondary: "hover:bg-[var(--theme-surface-strong)]",
+  ghost: "hover:bg-[var(--theme-button-ghost-hover)]",
+  destructive: "text-white hover:brightness-95",
+  outline: "hover:bg-[var(--theme-surface-strong)]"
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
@@ -22,15 +22,44 @@ const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
 };
 
 export function Button({ className, variant = "default", size = "md", type = "button", ...props }: ButtonProps) {
+  const variantStyle: Record<NonNullable<ButtonProps["variant"]>, React.CSSProperties> = {
+    default: {
+      background: "linear-gradient(90deg,var(--theme-accent-strong),color-mix(in srgb, var(--theme-accent) 86%, #d946ef 14%),var(--theme-accent))",
+      boxShadow: "0 18px 50px var(--theme-accent-shadow)",
+      color: "#fff"
+    },
+    secondary: {
+      background: "var(--theme-button-secondary)",
+      border: "1px solid var(--theme-border)",
+      color: "var(--theme-text)"
+    },
+    ghost: {
+      background: "transparent",
+      color: "var(--theme-text-muted)"
+    },
+    destructive: {
+      background: "#e11d48",
+      color: "#fff",
+      boxShadow: "0 18px 50px rgba(225,29,72,.24)"
+    },
+    outline: {
+      background: "var(--theme-surface)",
+      border: "1px solid var(--theme-border)",
+      color: "var(--theme-text)"
+    }
+  };
+
   return (
     <button
       type={type}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-2xl font-medium transition duration-200 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50",
         variantClasses[variant],
+        variant === "ghost" ? "hover:text-[var(--theme-text)]" : "",
         sizeClasses[size],
         className
       )}
+      style={variantStyle[variant]}
       {...props}
     />
   );

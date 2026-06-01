@@ -9,7 +9,8 @@ import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
+import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
+import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 import { upsertCardAction } from "@/lib/supabase/actions";
 import { ImagePreview } from "@/components/image-preview";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -22,8 +23,10 @@ function clampHeight(value: number) {
   return Math.max(80, Math.min(1200, value));
 }
 
-const toggleLabelClass = "flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85 transition hover:bg-white/8";
-const uploadLabelClass = "inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/85 transition hover:bg-white/8";
+const toggleLabelClass =
+  "flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
+const uploadLabelClass =
+  "inline-flex cursor-pointer items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -65,7 +68,7 @@ export function AdminCardEditor({
   const [pending, startTransition] = useTransition();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [thumbnailUrl, setThumbnailUrl] = useState(card?.thumbnail_url || "");
-
+  const [projectKey, setProjectKey] = useState<ProjectKey>(card?.project_key || "main");
   const [preview, setPreview] = useState({
     aspect_ratio: card?.aspect_ratio || "custom",
     height_px: card?.height_px || 320,
@@ -74,6 +77,7 @@ export function AdminCardEditor({
 
   useEffect(() => {
     setThumbnailUrl(card?.thumbnail_url || "");
+    setProjectKey(card?.project_key || "main");
     setPreview({
       aspect_ratio: card?.aspect_ratio || "custom",
       height_px: card?.height_px || 320,
@@ -81,14 +85,17 @@ export function AdminCardEditor({
     });
   }, [card, open]);
 
-  const typeDefaults = types.find((t) => t.id === (card?.type_id || types[0]?.id));
+  const typeDefaults = types.find((type) => type.id === (card?.type_id || types[0]?.id));
   const currentHeight = preview.height_px || typeDefaults?.default_height_px || 320;
+  const typeId = card?.type_id || types[0]?.id || "";
+  const statusId = card?.status_id || statuses[0]?.id || "";
 
   const uploadImage = async (file: File) => {
     if (!supabase) {
-      toast.push({ title: "Supabase not configured", description: "Use a direct image URL for now." });
+      toast.push({ title: "Supabase не настроен", description: "Пока можно использовать прямую ссылку на изображение." });
       return;
     }
+
     const optimized = await optimizeImageForUpload(file, { maxDimension: 1600, quality: 0.82 });
     const uploadFile = optimized.file;
     const ext = extensionFromMimeType(uploadFile.type);
@@ -97,31 +104,34 @@ export function AdminCardEditor({
       upsert: true,
       contentType: uploadFile.type
     });
+
     if (error) {
-      toast.push({ title: "Upload failed", description: error.message });
+      toast.push({ title: "Ошибка загрузки", description: error.message });
       return;
     }
+
     const { data } = supabase.storage.from("thumbnails").getPublicUrl(path);
     setThumbnailUrl(data.publicUrl);
     toast.push({
-      title: optimized.changed ? "Image optimized and uploaded" : "Image uploaded",
+      title: optimized.changed ? "Изображение оптимизировано и загружено" : "Изображение загружено",
       description: optimized.changed ? `${formatFileSize(optimized.originalSize)} -> ${formatFileSize(optimized.optimizedSize)}` : undefined
     });
   };
 
-  const typeId = card?.type_id || types[0]?.id || "";
-  const statusId = card?.status_id || statuses[0]?.id || "";
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(event.currentTarget);
     formData.set("thumbnail_url", thumbnailUrl || card?.thumbnail_url || "");
+    formData.set("project_key", projectKey);
+
     startTransition(async () => {
       const result = await upsertCardAction(formData);
       if (!result.ok) {
-        toast.push({ title: "Could not save card", description: result.message });
+        toast.push({ title: "Не удалось сохранить карточку", description: result.message });
         return;
       }
+
       toast.push({ title: result.message });
       onOpenChange(false);
       onSaved?.();
@@ -132,35 +142,55 @@ export function AdminCardEditor({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={card ? "Edit card" : "New card"}
-      description="Quick content management without extra clutter"
+      title={card ? "Редактировать карточку" : "Новая карточка"}
+      description="Быстрое управление контентом без лишнего шума"
       className="sm:max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_0.95fr]">
         <input type="hidden" name="id" defaultValue={card?.id || ""} />
         <input type="hidden" name="thumbnail_url" value={thumbnailUrl || card?.thumbnail_url || ""} />
+        <input type="hidden" name="project_key" value={projectKey} />
 
         <div className="space-y-4">
           <Card>
             <CardContent className="space-y-4 p-5">
               <div>
-                <CardTitle>Main fields</CardTitle>
-                <CardDescription className="mt-1">Title, type, status and link</CardDescription>
+                <CardTitle>Основные поля</CardTitle>
+                <CardDescription className="mt-1">Название, проект, тип, статус и ссылка.</CardDescription>
               </div>
 
               <div className="grid gap-3">
-                <Input name="title" defaultValue={card?.title || ""} placeholder="Card title" />
+                <Input name="title" defaultValue={card?.title || ""} placeholder="Название карточки" />
+                <div className="space-y-2">
+                  <div className="label">Проект</div>
+                  <ProjectSegmentedToggle
+                    value={projectKey}
+                    onChange={setProjectKey}
+                    options={[
+                      { value: "main", label: "Main" },
+                      { value: "mena", label: "Mena" }
+                    ]}
+                  />
+                </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <Select name="type_id" defaultValue={typeId}>
-                    {types.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                    {types.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.title}
+                      </option>
+                    ))}
                   </Select>
                   <Select name="status_id" defaultValue={statusId}>
-                    {statuses.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                    {statuses.map((status) => (
+                      <option key={status.id} value={status.id}>
+                        {status.title}
+                      </option>
+                    ))}
                   </Select>
                 </div>
                 <Input name="link" defaultValue={card?.link || ""} placeholder="https://" />
-                <Input name="subtitle" defaultValue={card?.subtitle || ""} placeholder="Subtitle" />
-                <Textarea name="notes" defaultValue={card?.notes || ""} placeholder="Admin note" />
+                <Input name="subtitle" defaultValue={card?.subtitle || ""} placeholder="Подзаголовок" />
+                <Textarea name="notes" defaultValue={card?.notes || ""} placeholder="Внутренняя заметка" />
               </div>
             </CardContent>
           </Card>
@@ -168,24 +198,32 @@ export function AdminCardEditor({
           <Card>
             <CardContent className="space-y-4 p-5">
               <div>
-                <CardTitle>Display settings</CardTitle>
-                <CardDescription className="mt-1">Aspect ratio, height and crop mode</CardDescription>
+                <CardTitle>Параметры отображения</CardTitle>
+                <CardDescription className="mt-1">Соотношение сторон, высота и режим кадрирования.</CardDescription>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Select
                   name="aspect_ratio"
                   defaultValue={card?.aspect_ratio || "custom"}
-                  onChange={(e) => setPreview((p) => ({ ...p, aspect_ratio: e.target.value as CardAspectRatio }))}
+                  onChange={(event) => setPreview((state) => ({ ...state, aspect_ratio: event.target.value as CardAspectRatio }))}
                 >
-                  {aspectPresets.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {aspectPresets.map((preset) => (
+                    <option key={preset} value={preset}>
+                      {preset}
+                    </option>
+                  ))}
                 </Select>
                 <Select
                   name="crop_mode"
                   defaultValue={card?.crop_mode || "cover"}
-                  onChange={(e) => setPreview((p) => ({ ...p, crop_mode: e.target.value as CardCropMode }))}
+                  onChange={(event) => setPreview((state) => ({ ...state, crop_mode: event.target.value as CardCropMode }))}
                 >
-                  {cropPresets.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {cropPresets.map((preset) => (
+                    <option key={preset} value={preset}>
+                      {preset}
+                    </option>
+                  ))}
                 </Select>
               </div>
 
@@ -195,15 +233,15 @@ export function AdminCardEditor({
                 min={80}
                 max={1200}
                 defaultValue={card?.height_px || typeDefaults?.default_height_px || 320}
-                onChange={(e) => setPreview((p) => ({ ...p, height_px: clampHeight(Number(e.target.value || currentHeight)) }))}
+                onChange={(event) => setPreview((state) => ({ ...state, height_px: clampHeight(Number(event.target.value || currentHeight)) }))}
               />
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className={toggleLabelClass}>
-                  <Checkbox name="is_hidden" defaultChecked={card?.is_hidden || false} /> Hide on public page
+                <label className={toggleLabelClass} style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}>
+                  <Checkbox name="is_hidden" defaultChecked={card?.is_hidden || false} /> Скрыть на публичной странице
                 </label>
-                <label className={toggleLabelClass}>
-                  <Checkbox name="is_pinned" defaultChecked={card?.is_pinned || false} /> Pin to top
+                <label className={toggleLabelClass} style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}>
+                  <Checkbox name="is_pinned" defaultChecked={card?.is_pinned || false} /> Закрепить наверху
                 </label>
               </div>
             </CardContent>
@@ -214,33 +252,36 @@ export function AdminCardEditor({
           <Card>
             <CardContent className="space-y-4 p-5">
               <div>
-                <CardTitle>Preview</CardTitle>
-                <CardDescription className="mt-1">Upload a file or paste an image URL</CardDescription>
+                <CardTitle>Превью</CardTitle>
+                <CardDescription className="mt-1">Загрузи файл или вставь URL изображения.</CardDescription>
               </div>
+
               <ImagePreview
                 src={thumbnailUrl || card?.thumbnail_url}
-                alt={card?.title || "Preview"}
+                alt={card?.title || "Превью"}
                 aspectRatio={preview.aspect_ratio}
                 heightPx={preview.height_px || typeDefaults?.default_height_px || 320}
                 cropMode={preview.crop_mode}
               />
-              <Input
-                value={thumbnailUrl}
-                onChange={(e) => setThumbnailUrl(e.target.value)}
-                placeholder="Image URL"
-              />
+
+              <Input value={thumbnailUrl} onChange={(event) => setThumbnailUrl(event.target.value)} placeholder="URL изображения" />
+
               <div>
-                <label className={uploadLabelClass}>
-                  Upload image
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0])} />
+                <label className={uploadLabelClass} style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}>
+                  Загрузить изображение
+                  <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0])} />
                 </label>
               </div>
             </CardContent>
           </Card>
 
           <div className="flex items-center justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={pending}>{pending ? "Saving..." : "Save"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Сохраняю..." : "Сохранить"}
+            </Button>
           </div>
         </div>
       </form>

@@ -28,6 +28,7 @@ create table if not exists card_types (
 create table if not exists cards (
   id uuid primary key default gen_random_uuid(),
   title text not null,
+  project_key text not null default 'main' check (project_key in ('main', 'mena')),
   type_id uuid not null references card_types(id) on delete restrict,
   status_id uuid not null references statuses(id) on delete restrict,
   link text not null,
@@ -53,6 +54,7 @@ create table if not exists ui_preferences (
 );
 
 create index if not exists idx_cards_status_sort on cards (status_id, is_pinned desc, sort_order asc);
+create index if not exists idx_cards_project_status_sort on cards (project_key, status_id, is_pinned desc, sort_order asc);
 create index if not exists idx_cards_hidden on cards (is_hidden);
 create index if not exists idx_statuses_sort on statuses (sort_order asc);
 create index if not exists idx_types_sort on card_types (sort_order asc);

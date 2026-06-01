@@ -8,7 +8,12 @@ export function Checkbox({ className, ...props }: Props) {
     <input
       type="checkbox"
       {...props}
-      className={cn("h-4 w-4 rounded border-white/20 bg-white/5 text-rose-500 focus:ring-rose-500/30", className)}
+      className={cn("h-4 w-4 rounded focus:ring-[var(--theme-input-ring)]", className)}
+      style={{
+        borderColor: "var(--theme-border)",
+        background: "var(--theme-surface)",
+        color: "var(--theme-accent-strong)"
+      }}
     />
   );
 }

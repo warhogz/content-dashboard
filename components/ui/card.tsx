@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import * as React from "react";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cn("rounded-[28px] border border-white/10 bg-white/6 shadow-soft backdrop-blur-2xl", className)} />;
+  return <div {...props} className={cn("rounded-[28px] backdrop-blur-2xl", className)} style={{ border: "1px solid var(--theme-border)", background: "var(--theme-surface)", boxShadow: "var(--theme-shadow-lift)", ...props.style }} />;
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -14,9 +14,9 @@ export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDi
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 {...props} className={cn("text-base font-semibold tracking-tight text-white", className)} />;
+  return <h3 {...props} className={cn("text-base font-semibold tracking-tight", className)} style={{ color: "var(--theme-text)", ...props.style }} />;
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p {...props} className={cn("text-sm leading-6 text-white/60", className)} />;
+  return <p {...props} className={cn("text-sm leading-6", className)} style={{ color: "var(--theme-text-muted)", ...props.style }} />;
 }

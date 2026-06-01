@@ -22,9 +22,18 @@ export function ToastProvider({ children }: React.PropsWithChildren) {
       {children}
       <div className="fixed bottom-4 right-4 z-[60] flex w-[min(92vw,360px)] flex-col gap-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl border border-line bg-white/90 p-4 shadow-soft backdrop-blur-md">
+          <div
+            key={item.id}
+            className="rounded-2xl border p-4 backdrop-blur-md"
+            style={{
+              borderColor: "var(--theme-border)",
+              background: "var(--theme-panel-bg)",
+              color: "var(--theme-text)",
+              boxShadow: "var(--theme-shadow-lift)"
+            }}
+          >
             <div className="text-sm font-semibold">{item.title}</div>
-            {item.description ? <div className="mt-1 text-sm text-slate-500">{item.description}</div> : null}
+            {item.description ? <div className="mt-1 text-sm" style={{ color: "var(--theme-text-muted)" }}>{item.description}</div> : null}
           </div>
         ))}
       </div>

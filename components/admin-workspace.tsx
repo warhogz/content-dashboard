@@ -60,7 +60,7 @@ export function AdminWorkspace({
     const formData = new FormData();
     formData.set("id", id);
     const res = await deleteCardAction(formData);
-    toast.push({ title: res.ok ? "Deleted" : "Error", description: res.message });
+    toast.push({ title: res.ok ? "Удалено" : "Ошибка", description: res.message });
     router.refresh();
   };
 
@@ -68,7 +68,7 @@ export function AdminWorkspace({
     const formData = new FormData();
     formData.set("id", id);
     const res = await duplicateCardAction(formData);
-    toast.push({ title: res.ok ? "Duplicated" : "Error", description: res.message });
+    toast.push({ title: res.ok ? "Создан дубликат" : "Ошибка", description: res.message });
     router.refresh();
   };
 
@@ -77,7 +77,7 @@ export function AdminWorkspace({
     formData.set("id", card.id);
     formData.set("is_hidden", String(card.is_hidden));
     const res = await toggleCardHiddenAction(formData);
-    toast.push({ title: res.ok ? "Updated" : "Error", description: res.message });
+    toast.push({ title: res.ok ? "Обновлено" : "Ошибка", description: res.message });
     router.refresh();
   };
 
@@ -86,13 +86,20 @@ export function AdminWorkspace({
     formData.set("id", card.id);
     formData.set("is_pinned", String(card.is_pinned));
     const res = await toggleCardPinnedAction(formData);
-    toast.push({ title: res.ok ? "Updated" : "Error", description: res.message });
+    toast.push({ title: res.ok ? "Обновлено" : "Ошибка", description: res.message });
     router.refresh();
   };
 
   return (
     <main className="page-shell py-6 sm:py-8">
-      <div className="mb-6 rounded-[32px] border border-white/10 bg-white/6 p-5 shadow-2xl shadow-black/20 backdrop-blur-2xl sm:p-6">
+      <div
+        className="mb-6 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
+        style={{
+          borderColor: "var(--theme-border)",
+          background: "var(--theme-panel-bg)",
+          boxShadow: "var(--theme-shadow)"
+        }}
+      >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <div className="label">Workspace</div>
@@ -100,23 +107,36 @@ export function AdminWorkspace({
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:min-w-[320px]">
-            <div className="rounded-2xl border border-white/10 bg-white/6 p-4">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">Cards</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{data.cards.length}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/6 p-4">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">Statuses</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{data.statuses.length}</div>
-            </div>
-            <div className="col-span-2 rounded-2xl border border-white/10 bg-white/6 p-4 sm:col-span-1">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">Types</div>
-              <div className="mt-2 text-2xl font-semibold text-white">{data.types.length}</div>
-            </div>
+            {[
+              { label: "Cards", value: data.cards.length },
+              { label: "Statuses", value: data.statuses.length },
+              { label: "Types", value: data.types.length, wide: true }
+            ].map((item) => (
+              <div
+                key={item.label}
+                className={item.wide ? "col-span-2 rounded-2xl border p-4 sm:col-span-1" : "rounded-2xl border p-4"}
+                style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-strong)" }}
+              >
+                <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--theme-text-muted)" }}>
+                  {item.label}
+                </div>
+                <div className="mt-2 text-2xl font-semibold" style={{ color: "var(--theme-text)" }}>
+                  {item.value}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="mb-6 grid gap-3 rounded-[28px] border border-white/10 bg-white/5 p-4 shadow-soft backdrop-blur-2xl xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+      <div
+        className="mb-6 grid gap-3 rounded-[28px] border p-4 backdrop-blur-2xl xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+        style={{
+          borderColor: "var(--theme-border)",
+          background: "var(--theme-surface)",
+          boxShadow: "var(--theme-shadow-lift)"
+        }}
+      >
         <SearchBar value={search} onChange={setSearch} />
         <FilterBar
           types={data.types}
@@ -125,37 +145,34 @@ export function AdminWorkspace({
           selectedStatus={selectedStatus}
           onTypeChange={setSelectedType}
           onStatusChange={setSelectedStatus}
-          onReset={() => { setSelectedType(""); setSelectedStatus(""); setSearch(""); }}
+          onReset={() => {
+            setSelectedType("");
+            setSelectedStatus("");
+            setSearch("");
+          }}
         />
-        <Button className="xl:self-start" onClick={openNew}>New card</Button>
+        <Button className="xl:self-start" onClick={openNew}>
+          New card
+        </Button>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {filteredCards.map((card) => (
           <div key={card.id} className="flex h-full flex-col gap-3">
-            <CardItem
-              item={card}
-              onCopy={duplicateCard}
-              onToggleHidden={() => toggleHidden(card)}
-              onTogglePinned={() => togglePinned(card)}
-              compact
-            />
+            <CardItem item={card} onCopy={duplicateCard} onToggleHidden={() => toggleHidden(card)} onTogglePinned={() => togglePinned(card)} compact />
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => openEdit(card)}>Edit</Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(card.id)}>Delete</Button>
+              <Button variant="outline" size="sm" onClick={() => openEdit(card)}>
+                Edit
+              </Button>
+              <Button className="hover:bg-[var(--theme-button-ghost-hover)]" variant="ghost" size="sm" onClick={() => setConfirmDelete(card.id)}>
+                Delete
+              </Button>
             </div>
           </div>
         ))}
       </div>
 
-      <AdminCardEditor
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        card={editingCard}
-        statuses={data.statuses}
-        types={data.types}
-        onSaved={() => router.refresh()}
-      />
+      <AdminCardEditor open={editorOpen} onOpenChange={setEditorOpen} card={editingCard} statuses={data.statuses} types={data.types} onSaved={() => router.refresh()} />
 
       <ConfirmDialog
         open={Boolean(confirmDelete)}

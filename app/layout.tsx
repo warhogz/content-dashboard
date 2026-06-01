@@ -14,8 +14,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru">
-      <body className={inter.className + " bg-transparent text-white"}>
+    <html lang="ru" suppressHydrationWarning>
+      <body className={inter.className + " bg-transparent"}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var theme = localStorage.getItem("content-dashboard-theme");
+                document.documentElement.dataset.theme = theme === "pearl" ? "pearl" : "burgundy";
+              } catch (e) {
+                document.documentElement.dataset.theme = "burgundy";
+              }
+            `
+          }}
+        />
         <ToastProvider>
           <Topbar />
           {children}

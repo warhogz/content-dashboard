@@ -6,9 +6,15 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
     <textarea
       {...props}
       className={cn(
-        "min-h-28 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-pink-400/30 focus:bg-white/7 focus:ring-4 focus:ring-pink-500/10",
+        "min-h-28 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition placeholder:text-[color:var(--theme-text-muted)] focus:ring-4 focus:ring-[var(--theme-input-ring)]",
         props.className
       )}
+      style={{
+        borderColor: "var(--theme-border)",
+        background: "var(--theme-input-bg)",
+        color: "var(--theme-text)",
+        boxShadow: "var(--theme-shadow-lift)"
+      }}
     />
   );
 }

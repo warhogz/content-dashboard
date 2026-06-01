@@ -1,6 +1,6 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getMockData } from "@/lib/mock-data";
-import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
+import { CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 
@@ -55,6 +55,15 @@ async function safeQuery<T>(query: (signal: AbortSignal) => Promise<any>, label:
   }
 }
 
+function normalizeCards(cards: ContentCard[] | null | undefined) {
+  if (!cards) return null;
+
+  return cards.map((card) => ({
+    ...card,
+    project_key: (card.project_key || "main") as ProjectKey
+  }));
+}
+
 export async function getDashboardData() {
   if (!hasSupabase()) return getMockData();
 
@@ -100,7 +109,7 @@ export async function getDashboardData() {
   return {
     statuses: statuses ?? fallback.statuses,
     types: types ?? fallback.types,
-    cards: cards ?? fallback.cards
+    cards: normalizeCards(cards) ?? fallback.cards
   };
 }
 
@@ -147,6 +156,6 @@ export async function getAdminData() {
   return {
     statuses: statuses ?? fallback.statuses,
     types: types ?? fallback.types,
-    cards: cards ?? fallback.cards
+    cards: normalizeCards(cards) ?? fallback.cards
   };
 }

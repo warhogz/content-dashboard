@@ -3,11 +3,14 @@
 import { useMemo, useState } from "react";
 import { StatusSection } from "@/components/status-section";
 import { EmptyState } from "@/components/empty-state";
+import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
 
 export type CardSortMode = "oldest" | "newest";
+type ProjectScope = "all" | "mena";
+const heroStatusSlugs = ["done", "waiting-feedback", "revisions"] as const;
 
 function cardDateValue(card: ContentCard) {
   return card.created_at ? new Date(card.created_at).getTime() : 0;
@@ -25,11 +28,16 @@ export function PublicDashboard({
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [sortMode, setSortMode] = useState<CardSortMode>("oldest");
+  const [projectScope, setProjectScope] = useState<ProjectScope>("all");
+
+  const projectCards = useMemo(() => {
+    const projectKey = projectScope === "mena" ? "mena" : "main";
+    return cards.filter((card) => !card.is_hidden && (card.project_key || "main") === projectKey);
+  }, [cards, projectScope]);
 
   const filteredCards = useMemo(() => {
-    return cards
+    return projectCards
       .filter((card) => {
-        if (card.is_hidden) return false;
         if (selectedStatus && card.status_id !== selectedStatus) return false;
         if (selectedType && card.type_id !== selectedType) return false;
         return true;
@@ -43,7 +51,19 @@ export function PublicDashboard({
 
         return sortMode === "newest" ? b.sort_order - a.sort_order : a.sort_order - b.sort_order;
       });
-  }, [cards, selectedStatus, selectedType, sortMode]);
+  }, [projectCards, selectedStatus, selectedType, sortMode]);
+
+  const heroStats = useMemo(() => {
+    return heroStatusSlugs.map((slug) => {
+      const status = statuses.find((item) => item.slug === slug);
+      return {
+        slug,
+        title: status?.title ?? slug,
+        color: status?.color ?? "#64748b",
+        count: status ? projectCards.filter((card) => card.status_id === status.id).length : 0
+      };
+    });
+  }, [projectCards, statuses]);
 
   const visibleStatuses = useMemo(() => {
     if (selectedStatus) {
@@ -56,19 +76,87 @@ export function PublicDashboard({
 
   return (
     <div className="space-y-8">
-      <div className="rounded-[30px] border border-white/10 bg-white/5 p-4 backdrop-blur-2xl">
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <div className="label">Фильтры</div>
-          {(selectedStatus || selectedType || sortMode !== "oldest") ? <div className="text-xs text-white/45">Подборка обновлена</div> : null}
+      <section
+        className="overflow-hidden rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6 lg:p-8"
+        style={{
+          borderColor: "var(--theme-border)",
+          background: "var(--theme-hero-bg)",
+          boxShadow: "var(--theme-shadow)"
+        }}
+      >
+        <div className="flex flex-col items-center gap-6 text-center">
+          <div className="max-w-2xl">
+            <div className="label">{projectScope === "mena" ? "Mena" : "Лента контента"}</div>
+          </div>
+          <div className="grid w-full gap-3 sm:grid-cols-3">
+            {heroStats.map((item) => (
+              <div
+                key={item.slug}
+                className="rounded-[26px] border px-4 py-4 text-left backdrop-blur-xl sm:px-5"
+                style={{
+                  borderColor: `${item.color}55`,
+                  background: "var(--theme-surface-soft)",
+                  boxShadow: `0 0 0 1px ${item.color}18 inset, 0 0 38px ${item.color}24`
+                }}
+              >
+                <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "var(--theme-text-muted)" }}>
+                  {item.title}
+                </div>
+                <div className="mt-3 flex items-end justify-between gap-4">
+                  <div className="text-3xl font-semibold sm:text-4xl" style={{ color: "var(--theme-text)" }}>
+                    {item.count}
+                  </div>
+                  <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: item.color, boxShadow: `0 0 18px ${item.color}` }} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      </section>
+
+      <div
+        className="rounded-[30px] border p-4 backdrop-blur-2xl"
+        style={{
+          borderColor: "var(--theme-border)",
+          background: "var(--theme-surface)",
+          boxShadow: "var(--theme-shadow)"
+        }}
+      >
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="label">Фильтры</div>
+            <ProjectSegmentedToggle
+              value={projectScope}
+              onChange={setProjectScope}
+              options={[
+                { value: "all", label: "All" },
+                { value: "mena", label: "Mena" }
+              ]}
+            />
+          </div>
+          {selectedStatus || selectedType || sortMode !== "oldest" || projectScope !== "all" ? (
+            <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+              Подборка обновлена
+            </div>
+          ) : null}
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
           <Select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
             <option value="">Все статусы</option>
-            {statuses.map((status) => <option key={status.id} value={status.id}>{status.title}</option>)}
+            {statuses.map((status) => (
+              <option key={status.id} value={status.id}>
+                {status.title}
+              </option>
+            ))}
           </Select>
           <Select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
             <option value="">Все типы</option>
-            {types.map((type) => <option key={type.id} value={type.id}>{type.title}</option>)}
+            {types.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.title}
+              </option>
+            ))}
           </Select>
           <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as CardSortMode)}>
             <option value="oldest">Сначала старые</option>
@@ -81,6 +169,7 @@ export function PublicDashboard({
               setSelectedStatus("");
               setSelectedType("");
               setSortMode("oldest");
+              setProjectScope("all");
             }}
           >
             Сбросить
@@ -90,10 +179,15 @@ export function PublicDashboard({
 
       {filteredCards.length ? (
         <div className="grid gap-8">
-          {visibleStatuses.map((status) => <StatusSection key={status.id} status={status} cards={filteredCards} sortMode={sortMode} />)}
+          {visibleStatuses.map((status) => (
+            <StatusSection key={status.id} status={status} cards={filteredCards} sortMode={sortMode} />
+          ))}
         </div>
       ) : (
-        <EmptyState title="Ничего не найдено" description="Попробуй другой статус или тип карточки." />
+        <EmptyState
+          title={projectScope === "mena" ? "Пока нет карточек для Mena" : "Ничего не найдено"}
+          description={projectScope === "mena" ? "Добавь карточки проекта Mena в админке." : "Попробуй другой статус или тип карточки."}
+        />
       )}
     </div>
   );

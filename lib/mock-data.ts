@@ -1,19 +1,20 @@
 import { CardTypeRow, ContentCard, DEFAULT_STATUS_SEED, DEFAULT_TYPE_SEED, StatusRow } from "@/lib/types";
 
-const statuses: StatusRow[] = DEFAULT_STATUS_SEED.map((s, i) => ({
-  ...s,
-  id: `status-${i + 1}`
+const statuses: StatusRow[] = DEFAULT_STATUS_SEED.map((status, index) => ({
+  ...status,
+  id: `status-${index + 1}`
 }));
 
-const types: CardTypeRow[] = DEFAULT_TYPE_SEED.map((t, i) => ({
-  ...t,
-  id: `type-${i + 1}`
+const types: CardTypeRow[] = DEFAULT_TYPE_SEED.map((type, index) => ({
+  ...type,
+  id: `type-${index + 1}`
 }));
 
 const rawCards: ContentCard[] = [
   {
     id: "card-1",
     title: "Reels про запуск новой коллекции",
+    project_key: "main",
     type_id: "type-1",
     status_id: "status-1",
     link: "https://example.com",
@@ -30,6 +31,7 @@ const rawCards: ContentCard[] = [
   {
     id: "card-2",
     title: "YouTube teaser",
+    project_key: "main",
     type_id: "type-2",
     status_id: "status-2",
     link: "https://example.com",
@@ -46,6 +48,7 @@ const rawCards: ContentCard[] = [
   {
     id: "card-3",
     title: "Carousel о кейсах",
+    project_key: "main",
     type_id: "type-3",
     status_id: "status-3",
     link: "https://example.com",
@@ -59,7 +62,7 @@ const rawCards: ContentCard[] = [
     subtitle: "Нужны правки в подписи",
     notes: null
   }
-] as ContentCard[];
+];
 
 const cards: ContentCard[] = rawCards.map((card) => ({
   ...card,
