@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ImagePreload } from "@/components/image-preload";
 import { StatusSection } from "@/components/status-section";
 import { EmptyState } from "@/components/empty-state";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
 
 export type CardSortMode = "oldest" | "newest";
@@ -14,6 +16,18 @@ const heroStatusSlugs = ["done", "waiting-feedback", "revisions"] as const;
 
 function cardDateValue(card: ContentCard) {
   return card.created_at ? new Date(card.created_at).getTime() : 0;
+}
+
+function sortCards(cards: ContentCard[], sortMode: CardSortMode) {
+  return [...cards].sort((a, b) => {
+    const pinnedDiff = Number(b.is_pinned) - Number(a.is_pinned);
+    if (pinnedDiff !== 0) return pinnedDiff;
+
+    const dateDiff = sortMode === "newest" ? cardDateValue(b) - cardDateValue(a) : cardDateValue(a) - cardDateValue(b);
+    if (dateDiff !== 0) return dateDiff;
+
+    return sortMode === "newest" ? b.sort_order - a.sort_order : a.sort_order - b.sort_order;
+  });
 }
 
 export function PublicDashboard({
@@ -36,21 +50,12 @@ export function PublicDashboard({
   }, [cards, projectScope]);
 
   const filteredCards = useMemo(() => {
-    return projectCards
-      .filter((card) => {
+    const scopedCards = projectCards.filter((card) => {
         if (selectedStatus && card.status_id !== selectedStatus) return false;
         if (selectedType && card.type_id !== selectedType) return false;
         return true;
-      })
-      .sort((a, b) => {
-        const pinnedDiff = Number(b.is_pinned) - Number(a.is_pinned);
-        if (pinnedDiff !== 0) return pinnedDiff;
-
-        const dateDiff = sortMode === "newest" ? cardDateValue(b) - cardDateValue(a) : cardDateValue(a) - cardDateValue(b);
-        if (dateDiff !== 0) return dateDiff;
-
-        return sortMode === "newest" ? b.sort_order - a.sort_order : a.sort_order - b.sort_order;
       });
+    return sortCards(scopedCards, sortMode);
   }, [projectCards, selectedStatus, selectedType, sortMode]);
 
   const heroStats = useMemo(() => {
@@ -74,8 +79,22 @@ export function PublicDashboard({
     return statuses.filter((status) => ids.has(status.id));
   }, [filteredCards, selectedStatus, statuses]);
 
+  const preloadUrls = useMemo(() => {
+    const orderedCards = visibleStatuses.flatMap((status) =>
+      sortCards(
+        filteredCards.filter((card) => card.status_id === status.id && !card.is_hidden),
+        sortMode
+      )
+    );
+
+    return orderedCards
+      .map((card) => resolveCardPreviewUrl(card.thumbnail_url))
+      .filter((url): url is string => Boolean(url));
+  }, [filteredCards, sortMode, visibleStatuses]);
+
   return (
     <div className="space-y-8">
+      <ImagePreload urls={preloadUrls} />
       <section
         className="overflow-hidden rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6 lg:p-8"
         style={{

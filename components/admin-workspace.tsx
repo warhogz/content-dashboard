@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImagePreload } from "@/components/image-preload";
 import { CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/search-bar";
@@ -12,6 +13,7 @@ import { StatusManager } from "@/components/status-manager";
 import { TypeManager } from "@/components/type-manager";
 import { ContentCard, CardTypeRow, StatusRow } from "@/lib/types";
 import { useToast } from "@/components/ui/toast";
+import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 import { deleteCardAction, duplicateCardAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/actions";
 import { CardItem } from "@/components/card-item";
 
@@ -45,6 +47,14 @@ export function AdminWorkspace({
       })
       .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || cardDateValue(b) - cardDateValue(a) || b.sort_order - a.sort_order);
   }, [data.cards, search, selectedType, selectedStatus]);
+
+  const preloadUrls = useMemo(
+    () =>
+      filteredCards
+        .map((card) => resolveCardPreviewUrl(card.thumbnail_url))
+        .filter((url): url is string => Boolean(url)),
+    [filteredCards]
+  );
 
   const openNew = () => {
     setEditingCard(null);
@@ -92,6 +102,7 @@ export function AdminWorkspace({
 
   return (
     <main className="page-shell py-6 sm:py-8">
+      <ImagePreload urls={preloadUrls} />
       <div
         className="mb-6 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
         style={{
