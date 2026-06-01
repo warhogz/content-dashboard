@@ -94,7 +94,7 @@ export function PublicDashboard({
 
   return (
     <div className="space-y-8">
-      <ImagePreload urls={preloadUrls} />
+      <ImagePreload urls={preloadUrls} concurrency={8} priorityCount={12} />
       <section
         className="overflow-hidden rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6 lg:p-8"
         style={{

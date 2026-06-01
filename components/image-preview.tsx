@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
+import { enqueueImage, isImageLoaded, markImageLoaded, subscribeToImage } from "@/lib/image-cache";
 import { CardAspectRatio, CardCropMode } from "@/lib/types";
 
 function ratioClass(ratio: CardAspectRatio) {
@@ -39,7 +40,7 @@ export function ImagePreview({
   const previewHeight = Math.min(heightPx, 280);
   const resolvedSrc = useMemo(() => resolveCardPreviewUrl(src), [src]);
   const [currentSrc, setCurrentSrc] = useState(resolvedSrc);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(() => isImageLoaded(resolvedSrc));
   const style =
     aspectRatio === "custom"
       ? {
@@ -57,8 +58,28 @@ export function ImagePreview({
 
   useEffect(() => {
     setCurrentSrc(resolvedSrc);
-    setLoaded(false);
   }, [resolvedSrc]);
+
+  useEffect(() => {
+    if (!currentSrc) {
+      setLoaded(false);
+      return;
+    }
+
+    if (isImageLoaded(currentSrc)) {
+      setLoaded(true);
+      return;
+    }
+
+    setLoaded(false);
+    enqueueImage(currentSrc, { priority: fetchPriority, concurrency: fetchPriority === "high" ? 8 : 6 });
+
+    return subscribeToImage(currentSrc, () => {
+      if (isImageLoaded(currentSrc)) {
+        setLoaded(true);
+      }
+    });
+  }, [currentSrc, fetchPriority]);
 
   return (
     <div className={cn("relative w-full overflow-hidden rounded-3xl border", ratioClass(aspectRatio))} style={style}>
@@ -77,12 +98,16 @@ export function ImagePreview({
           <img
             src={currentSrc}
             alt={alt}
-            loading="eager"
+            loading={fetchPriority === "high" ? "eager" : "lazy"}
             fetchPriority={fetchPriority}
             decoding="async"
-            onLoad={() => setLoaded(true)}
+            onLoad={() => {
+              markImageLoaded(currentSrc);
+              setLoaded(true);
+            }}
             onError={() => {
               if (src && currentSrc !== src) {
+                setLoaded(isImageLoaded(src));
                 setCurrentSrc(src);
                 return;
               }

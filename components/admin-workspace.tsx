@@ -102,7 +102,7 @@ export function AdminWorkspace({
 
   return (
     <main className="page-shell py-6 sm:py-8">
-      <ImagePreload urls={preloadUrls} />
+      <ImagePreload urls={preloadUrls} concurrency={8} priorityCount={16} />
       <div
         className="mb-6 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
         style={{
