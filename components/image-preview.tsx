@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 import { CardAspectRatio, CardCropMode } from "@/lib/types";
 
 function ratioClass(ratio: CardAspectRatio) {
@@ -31,6 +35,9 @@ export function ImagePreview({
 }) {
   const customHeight = Math.min(heightPx, 360);
   const previewHeight = Math.min(heightPx, 280);
+  const resolvedSrc = useMemo(() => resolveCardPreviewUrl(src), [src]);
+  const [currentSrc, setCurrentSrc] = useState(resolvedSrc);
+  const [loaded, setLoaded] = useState(false);
   const style =
     aspectRatio === "custom"
       ? {
@@ -46,15 +53,46 @@ export function ImagePreview({
           boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--theme-border-soft) 60%, transparent)"
         };
 
+  useEffect(() => {
+    setCurrentSrc(resolvedSrc);
+    setLoaded(false);
+  }, [resolvedSrc]);
+
   return (
     <div className={cn("relative w-full overflow-hidden rounded-3xl border", ratioClass(aspectRatio))} style={style}>
-      {src ? (
-        <img
-          src={src}
-          alt={alt}
-          className={cn("absolute inset-0 h-full w-full", cropMode === "contain" ? "object-contain" : "object-cover")}
-          style={cropMode === "contain" ? { background: "var(--theme-image-inner-bg)" } : undefined}
-        />
+      {currentSrc ? (
+        <>
+          <div
+            className={cn(
+              "absolute inset-0 animate-pulse transition duration-500",
+              loaded ? "opacity-0" : "opacity-100"
+            )}
+            style={{
+              background:
+                "linear-gradient(135deg, color-mix(in srgb, var(--theme-surface-soft) 72%, transparent), color-mix(in srgb, var(--theme-surface-strong) 88%, transparent))"
+            }}
+          />
+          <img
+            src={currentSrc}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setLoaded(true)}
+            onError={() => {
+              if (src && currentSrc !== src) {
+                setCurrentSrc(src);
+                return;
+              }
+              setLoaded(true);
+            }}
+            className={cn(
+              "absolute inset-0 h-full w-full transition duration-500",
+              cropMode === "contain" ? "object-contain" : "object-cover",
+              loaded ? "opacity-100" : "opacity-0"
+            )}
+            style={cropMode === "contain" ? { background: "var(--theme-image-inner-bg)" } : undefined}
+          />
+        </>
       ) : (
         <div className="flex h-full items-center justify-center text-sm" style={{ color: "var(--theme-text-muted)" }}>
           Нет превью
