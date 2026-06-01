@@ -129,7 +129,7 @@ export function PublicDashboard({
               value={projectScope}
               onChange={setProjectScope}
               options={[
-                { value: "all", label: "All" },
+                { value: "all", label: "LA" },
                 { value: "mena", label: "Mena" }
               ]}
             />
