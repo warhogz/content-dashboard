@@ -12,13 +12,15 @@ export function CardItem({
   onCopy,
   onToggleHidden,
   onTogglePinned,
-  compact = false
+  compact = false,
+  imagePriority = "auto"
 }: {
   item: ContentCard;
   onCopy?: (id: string) => void;
   onToggleHidden?: (id: string) => void;
   onTogglePinned?: (id: string) => void;
   compact?: boolean;
+  imagePriority?: "high" | "auto" | "low";
 }) {
   const previewHeight = compact ? Math.min(item.height_px, 210) : Math.min(item.height_px, 340);
 
@@ -34,7 +36,14 @@ export function CardItem({
       <CardContent className="p-0">
         <div className="flex h-full flex-col">
           <div className={compact ? "p-3" : "p-4"}>
-            <ImagePreview src={item.thumbnail_url} alt={item.title} aspectRatio={item.aspect_ratio} heightPx={previewHeight} cropMode={item.crop_mode} />
+            <ImagePreview
+              src={item.thumbnail_url}
+              alt={item.title}
+              aspectRatio={item.aspect_ratio}
+              heightPx={previewHeight}
+              cropMode={item.crop_mode}
+              fetchPriority={imagePriority}
+            />
           </div>
           <div
             className={compact ? "flex flex-1 flex-col justify-between gap-3 border-t p-4 pt-4" : "flex flex-1 flex-col justify-between gap-4 border-t p-5 pt-4"}

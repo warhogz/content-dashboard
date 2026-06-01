@@ -157,9 +157,16 @@ export function AdminWorkspace({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {filteredCards.map((card) => (
+        {filteredCards.map((card, index) => (
           <div key={card.id} className="flex h-full flex-col gap-3">
-            <CardItem item={card} onCopy={duplicateCard} onToggleHidden={() => toggleHidden(card)} onTogglePinned={() => togglePinned(card)} compact />
+            <CardItem
+              item={card}
+              onCopy={duplicateCard}
+              onToggleHidden={() => toggleHidden(card)}
+              onTogglePinned={() => togglePinned(card)}
+              compact
+              imagePriority={index < 6 ? "high" : "auto"}
+            />
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => openEdit(card)}>
                 Edit

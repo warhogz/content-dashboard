@@ -46,7 +46,7 @@ export function StatusSection({ status, cards, sortMode = "oldest" }: { status: 
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {visibleCards.length ? (
-          visibleCards.map((item) => <CardItem key={item.id} item={item} compact />)
+          visibleCards.map((item, index) => <CardItem key={item.id} item={item} compact imagePriority={index < 3 ? "high" : "auto"} />)
         ) : (
           <Card className="border-dashed" style={{ background: "var(--theme-surface-soft)" }}>
             <CardContent className="p-8 text-center text-sm" style={{ color: "var(--theme-text-muted)" }}>

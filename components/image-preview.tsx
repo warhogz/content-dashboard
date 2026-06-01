@@ -25,13 +25,15 @@ export function ImagePreview({
   alt,
   aspectRatio,
   heightPx,
-  cropMode
+  cropMode,
+  fetchPriority = "auto"
 }: {
   src?: string | null;
   alt: string;
   aspectRatio: CardAspectRatio;
   heightPx: number;
   cropMode: CardCropMode;
+  fetchPriority?: "high" | "auto" | "low";
 }) {
   const customHeight = Math.min(heightPx, 360);
   const previewHeight = Math.min(heightPx, 280);
@@ -75,7 +77,8 @@ export function ImagePreview({
           <img
             src={currentSrc}
             alt={alt}
-            loading="lazy"
+            loading="eager"
+            fetchPriority={fetchPriority}
             decoding="async"
             onLoad={() => setLoaded(true)}
             onError={() => {

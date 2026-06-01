@@ -2,9 +2,10 @@ import "server-only";
 
 import { normalizeDropboxSharedLink } from "@/lib/dropbox-links";
 
-const DROPBOX_THUMBNAIL_SIZE = "w640h480";
+const DROPBOX_THUMBNAIL_SIZE = "w480h320";
 const DROPBOX_THUMBNAIL_FORMAT = "jpeg";
 const DROPBOX_THUMBNAIL_MODE = "bestfit";
+const DROPBOX_THUMBNAIL_QUALITY = "quality_70";
 
 function getAccessToken() {
   return process.env.DROPBOX_ACCESS_TOKEN?.trim() || null;
@@ -29,7 +30,8 @@ export async function fetchDropboxThumbnail(sharedUrl: string) {
         },
         format: DROPBOX_THUMBNAIL_FORMAT,
         size: DROPBOX_THUMBNAIL_SIZE,
-        mode: DROPBOX_THUMBNAIL_MODE
+        mode: DROPBOX_THUMBNAIL_MODE,
+        quality: DROPBOX_THUMBNAIL_QUALITY
       })
     },
     cache: "no-store"
