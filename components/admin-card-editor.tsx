@@ -88,7 +88,12 @@ export function AdminCardEditor({
   const typeDefaults = types.find((type) => type.id === (card?.type_id || types[0]?.id));
   const currentHeight = preview.height_px || typeDefaults?.default_height_px || 320;
   const typeId = card?.type_id || types[0]?.id || "";
-  const statusId = card?.status_id || statuses[0]?.id || "";
+  const availableStatusIds = new Set(statuses.map((status) => status.id));
+  const statusId =
+    (card?.archived_from_status_id && availableStatusIds.has(card.archived_from_status_id) ? card.archived_from_status_id : null) ||
+    (card?.status_id && availableStatusIds.has(card.status_id) ? card.status_id : null) ||
+    statuses[0]?.id ||
+    "";
 
   const uploadImage = async (file: File) => {
     if (!supabase) {

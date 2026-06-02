@@ -1,6 +1,6 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getMockData } from "@/lib/mock-data";
-import { CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 
@@ -60,8 +60,18 @@ function normalizeCards(cards: ContentCard[] | null | undefined) {
 
   return cards.map((card) => ({
     ...card,
-    project_key: (card.project_key || "main") as ProjectKey
+    project_key: (card.project_key || "main") as ProjectKey,
+    is_archived: Boolean(card.is_archived || card.status?.slug === ARCHIVE_STATUS_SLUG),
+    archived_at:
+      card.archived_at ||
+      (card.status?.slug === ARCHIVE_STATUS_SLUG ? card.updated_at || card.created_at || null : null),
+    archived_from_status_id: card.archived_from_status_id || null
   }));
+}
+
+function normalizeStatuses(statuses: StatusRow[] | null | undefined) {
+  if (!statuses) return null;
+  return statuses.filter((status) => status.slug !== ARCHIVE_STATUS_SLUG);
 }
 
 export async function getDashboardData() {
@@ -107,7 +117,7 @@ export async function getDashboardData() {
   ]);
 
   return {
-    statuses: statuses ?? fallback.statuses,
+    statuses: normalizeStatuses(statuses) ?? fallback.statuses,
     types: types ?? fallback.types,
     cards: normalizeCards(cards) ?? fallback.cards
   };
@@ -154,7 +164,7 @@ export async function getAdminData() {
   ]);
 
   return {
-    statuses: statuses ?? fallback.statuses,
+    statuses: normalizeStatuses(statuses) ?? fallback.statuses,
     types: types ?? fallback.types,
     cards: normalizeCards(cards) ?? fallback.cards
   };

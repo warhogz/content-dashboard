@@ -25,6 +25,9 @@ const rawCards: ContentCard[] = [
     sort_order: 1,
     is_hidden: false,
     is_pinned: true,
+    is_archived: false,
+    archived_at: null,
+    archived_from_status_id: null,
     subtitle: "Короткий ролик для публикации в IG",
     notes: "Проверить текст на первом экране"
   },
@@ -42,6 +45,9 @@ const rawCards: ContentCard[] = [
     sort_order: 2,
     is_hidden: false,
     is_pinned: false,
+    is_archived: false,
+    archived_at: null,
+    archived_from_status_id: null,
     subtitle: "На согласовании обложка",
     notes: null
   },
@@ -59,6 +65,9 @@ const rawCards: ContentCard[] = [
     sort_order: 1,
     is_hidden: false,
     is_pinned: false,
+    is_archived: false,
+    archived_at: null,
+    archived_from_status_id: null,
     subtitle: "Нужны правки в подписи",
     notes: null
   }

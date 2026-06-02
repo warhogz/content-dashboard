@@ -39,6 +39,9 @@ create table if not exists cards (
   sort_order integer not null default 1,
   is_hidden boolean not null default false,
   is_pinned boolean not null default false,
+  is_archived boolean not null default false,
+  archived_at timestamptz,
+  archived_from_status_id uuid references statuses(id) on delete set null,
   subtitle text,
   notes text,
   created_at timestamptz not null default now(),
@@ -56,6 +59,7 @@ create table if not exists ui_preferences (
 create index if not exists idx_cards_status_sort on cards (status_id, is_pinned desc, sort_order asc);
 create index if not exists idx_cards_project_status_sort on cards (project_key, status_id, is_pinned desc, sort_order asc);
 create index if not exists idx_cards_hidden on cards (is_hidden);
+create index if not exists idx_cards_archive_sort on cards (project_key, is_archived, archived_at desc);
 create index if not exists idx_statuses_sort on statuses (sort_order asc);
 create index if not exists idx_types_sort on card_types (sort_order asc);
 

@@ -2,23 +2,30 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePreload } from "@/components/image-preload";
-import { CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { SearchBar } from "@/components/search-bar";
-import { FilterBar } from "@/components/filter-bar";
 import { AdminCardEditor } from "@/components/admin-card-editor";
+import { CardItem } from "@/components/card-item";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FilterBar } from "@/components/filter-bar";
+import { ImagePreload } from "@/components/image-preload";
+import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
+import { SearchBar } from "@/components/search-bar";
 import { StatusManager } from "@/components/status-manager";
 import { TypeManager } from "@/components/type-manager";
-import { ContentCard, CardTypeRow, StatusRow } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
-import { deleteCardAction, duplicateCardAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/actions";
-import { CardItem } from "@/components/card-item";
+import { deleteCardAction, duplicateCardAction, toggleCardArchivedAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/actions";
+import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
+
+type AdminArchiveScope = "active" | "archive" | "all";
 
 function cardDateValue(card: ContentCard) {
   return card.created_at ? new Date(card.created_at).getTime() : 0;
+}
+
+function archivedDateValue(card: ContentCard) {
+  return card.archived_at ? new Date(card.archived_at).getTime() : 0;
 }
 
 export function AdminWorkspace({
@@ -32,6 +39,7 @@ export function AdminWorkspace({
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [archiveScope, setArchiveScope] = useState<AdminArchiveScope>("active");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<ContentCard | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -39,14 +47,27 @@ export function AdminWorkspace({
   const filteredCards = useMemo(() => {
     return data.cards
       .filter((card) => {
+        if (archiveScope === "active" && card.is_archived) return false;
+        if (archiveScope === "archive" && !card.is_archived) return false;
+
         const text = `${card.title} ${card.subtitle || ""} ${card.notes || ""}`.toLowerCase();
         const matchesSearch = text.includes(search.toLowerCase());
         const matchesType = selectedType ? card.type_id === selectedType : true;
         const matchesStatus = selectedStatus ? card.status_id === selectedStatus : true;
         return matchesSearch && matchesType && matchesStatus;
       })
-      .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned) || cardDateValue(b) - cardDateValue(a) || b.sort_order - a.sort_order);
-  }, [data.cards, search, selectedType, selectedStatus]);
+      .sort((a, b) => {
+        if (archiveScope === "archive") {
+          return archivedDateValue(b) - archivedDateValue(a) || cardDateValue(b) - cardDateValue(a);
+        }
+
+        if (a.is_archived !== b.is_archived) {
+          return Number(a.is_archived) - Number(b.is_archived);
+        }
+
+        return Number(b.is_pinned) - Number(a.is_pinned) || cardDateValue(b) - cardDateValue(a) || b.sort_order - a.sort_order;
+      });
+  }, [archiveScope, data.cards, search, selectedStatus, selectedType]);
 
   const preloadUrls = useMemo(
     () =>
@@ -55,6 +76,9 @@ export function AdminWorkspace({
         .filter((url): url is string => Boolean(url)),
     [filteredCards]
   );
+
+  const activeCount = useMemo(() => data.cards.filter((card) => !card.is_archived).length, [data.cards]);
+  const archiveCount = useMemo(() => data.cards.filter((card) => card.is_archived).length, [data.cards]);
 
   const openNew = () => {
     setEditingCard(null);
@@ -100,9 +124,19 @@ export function AdminWorkspace({
     router.refresh();
   };
 
+  const toggleArchived = async (card: ContentCard) => {
+    const formData = new FormData();
+    formData.set("id", card.id);
+    formData.set("is_archived", String(card.is_archived));
+    const res = await toggleCardArchivedAction(formData);
+    toast.push({ title: res.ok ? "Обновлено" : "Ошибка", description: res.message });
+    router.refresh();
+  };
+
   return (
     <main className="page-shell py-6 sm:py-8">
       <ImagePreload urls={preloadUrls} concurrency={8} priorityCount={16} />
+
       <div
         className="mb-6 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
         style={{
@@ -119,8 +153,8 @@ export function AdminWorkspace({
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:min-w-[320px]">
             {[
-              { label: "Cards", value: data.cards.length },
-              { label: "Statuses", value: data.statuses.length },
+              { label: "Active", value: activeCount },
+              { label: "Archive", value: archiveCount },
               { label: "Types", value: data.types.length, wide: true }
             ].map((item) => (
               <div
@@ -148,7 +182,19 @@ export function AdminWorkspace({
           boxShadow: "var(--theme-shadow-lift)"
         }}
       >
-        <SearchBar value={search} onChange={setSearch} />
+        <div className="space-y-3">
+          <ProjectSegmentedToggle
+            value={archiveScope}
+            onChange={setArchiveScope}
+            options={[
+              { value: "active", label: "Active" },
+              { value: "archive", label: "Archive" },
+              { value: "all", label: "All" }
+            ]}
+          />
+          <SearchBar value={search} onChange={setSearch} />
+        </div>
+
         <FilterBar
           types={data.types}
           statusIds={data.statuses}
@@ -160,8 +206,10 @@ export function AdminWorkspace({
             setSelectedType("");
             setSelectedStatus("");
             setSearch("");
+            setArchiveScope("active");
           }}
         />
+
         <Button className="xl:self-start" onClick={openNew}>
           New card
         </Button>
@@ -175,6 +223,7 @@ export function AdminWorkspace({
               onCopy={duplicateCard}
               onToggleHidden={() => toggleHidden(card)}
               onTogglePinned={() => togglePinned(card)}
+              onToggleArchived={() => toggleArchived(card)}
               compact
               imagePriority={index < 6 ? "high" : "auto"}
             />
@@ -190,7 +239,14 @@ export function AdminWorkspace({
         ))}
       </div>
 
-      <AdminCardEditor open={editorOpen} onOpenChange={setEditorOpen} card={editingCard} statuses={data.statuses} types={data.types} onSaved={() => router.refresh()} />
+      <AdminCardEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        card={editingCard}
+        statuses={data.statuses}
+        types={data.types}
+        onSaved={() => router.refresh()}
+      />
 
       <ConfirmDialog
         open={Boolean(confirmDelete)}

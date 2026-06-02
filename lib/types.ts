@@ -2,6 +2,8 @@ export type CardCropMode = "cover" | "contain" | "crop";
 export type CardAspectRatio = "9:16" | "16:9" | "1:1" | "4:5" | "custom";
 export type ProjectKey = "main" | "mena";
 
+export const ARCHIVE_STATUS_SLUG = "archive";
+
 export interface StatusRow {
   id: string;
   title: string;
@@ -41,6 +43,9 @@ export interface ContentCard {
   sort_order: number;
   is_hidden: boolean;
   is_pinned: boolean;
+  is_archived: boolean;
+  archived_at: string | null;
+  archived_from_status_id: string | null;
   subtitle: string | null;
   notes: string | null;
   created_at?: string;
@@ -53,16 +58,14 @@ export const STATUS_PRIORITY: Record<string, number> = {
   done: 1,
   "waiting-feedback": 2,
   revisions: 3,
-  "in-progress": 4,
-  archive: 5
+  "in-progress": 4
 };
 
 export const DEFAULT_STATUS_SEED: Omit<StatusRow, "id" | "created_at" | "updated_at">[] = [
   { title: "Готово", slug: "done", color: "#16a34a", sort_order: 1, is_active: true, show_on_public: true },
-  { title: "Ждёт обратной связи", slug: "waiting-feedback", color: "#d97706", sort_order: 2, is_active: true, show_on_public: true },
+  { title: "Ждет обратной связи", slug: "waiting-feedback", color: "#d97706", sort_order: 2, is_active: true, show_on_public: true },
   { title: "На правках", slug: "revisions", color: "#dc2626", sort_order: 3, is_active: true, show_on_public: true },
-  { title: "В работе", slug: "in-progress", color: "#2563eb", sort_order: 4, is_active: true, show_on_public: true },
-  { title: "Архив", slug: "archive", color: "#64748b", sort_order: 5, is_active: true, show_on_public: true }
+  { title: "В работе", slug: "in-progress", color: "#2563eb", sort_order: 4, is_active: true, show_on_public: true }
 ];
 
 export const DEFAULT_TYPE_SEED: Omit<CardTypeRow, "id" | "created_at" | "updated_at">[] = [
