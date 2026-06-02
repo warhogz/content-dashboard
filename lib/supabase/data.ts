@@ -107,7 +107,7 @@ export async function getDashboardData() {
       async (signal) =>
         await supabase
           .from("cards")
-          .select("*, status:statuses(*), type:card_types(*)")
+          .select("*, status:statuses!cards_status_id_fkey(*), type:card_types(*)")
           .order("is_pinned", { ascending: false })
           .order("created_at", { ascending: false })
           .order("sort_order")
@@ -154,7 +154,7 @@ export async function getAdminData() {
       async (signal) =>
         await supabase
           .from("cards")
-          .select("*, status:statuses(*), type:card_types(*)")
+          .select("*, status:statuses!cards_status_id_fkey(*), type:card_types(*)")
           .order("is_pinned", { ascending: false })
           .order("created_at", { ascending: false })
           .order("sort_order")

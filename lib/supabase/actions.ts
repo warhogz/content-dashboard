@@ -279,7 +279,7 @@ export async function toggleCardArchivedAction(formData: FormData): Promise<Acti
   const current = String(formData.get("is_archived") || "false") === "true";
   const { data: card, error: cardError } = await supabase
     .from("cards")
-    .select("status_id, is_archived, archived_from_status_id, status:statuses(slug)")
+    .select("status_id, is_archived, archived_from_status_id, status:statuses!cards_status_id_fkey(slug)")
     .eq("id", id)
     .maybeSingle();
 
