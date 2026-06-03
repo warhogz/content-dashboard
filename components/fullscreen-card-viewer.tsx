@@ -36,7 +36,7 @@ export function FullscreenCardViewer({
       {open && card ? (
         <motion.div
           key={card.id}
-          className="fixed inset-0 z-50 flex items-stretch justify-center p-3 sm:p-5"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -52,7 +52,7 @@ export function FullscreenCardViewer({
           }}
         >
           <motion.div
-            className="relative flex h-full w-full max-w-[1600px] flex-col overflow-hidden rounded-[34px] border lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]"
+            className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[1600px] flex-col overflow-hidden rounded-[28px] border sm:max-h-[calc(100vh-2.5rem)] sm:rounded-[34px] lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]"
             initial={{ opacity: 0, scale: 0.965, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.985, y: 10 }}
@@ -66,7 +66,7 @@ export function FullscreenCardViewer({
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-4 top-4 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full border transition hover:scale-[1.03]"
+              className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border transition hover:scale-[1.03] sm:right-4 sm:top-4 sm:h-11 sm:w-11"
               style={{
                 borderColor: "var(--theme-border)",
                 background: "color-mix(in srgb, var(--theme-surface) 92%, transparent)",
@@ -77,25 +77,26 @@ export function FullscreenCardViewer({
             </button>
 
             <motion.div
-              className="min-h-[48vh] overflow-auto p-4 sm:p-6 lg:p-8"
+              className="min-h-0 flex-[1_1_auto] overflow-auto p-3 sm:p-5 lg:p-8"
               initial={{ opacity: 0.7, scale: 0.985 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.04, duration: 0.26 }}
             >
-              <div className="mx-auto flex min-h-full max-w-[980px] items-center">
+              <div className="mx-auto flex min-h-full w-full max-w-[980px] items-center justify-center">
                 <ImagePreview
                   src={card.thumbnail_url}
                   alt={card.title}
                   aspectRatio={card.aspect_ratio}
-                  heightPx={Math.max(card.height_px, 560)}
+                  heightPx={Math.min(Math.max(card.height_px, 420), 760)}
                   cropMode={card.crop_mode}
                   fetchPriority="high"
+                  className="max-h-[56vh] sm:max-h-[62vh] lg:max-h-[calc(100vh-10rem)]"
                 />
               </div>
             </motion.div>
 
             <motion.aside
-              className="border-t p-5 sm:p-6 lg:border-l lg:border-t-0 lg:p-8"
+              className="min-h-0 overflow-auto border-t p-4 sm:p-6 lg:border-l lg:border-t-0 lg:p-8"
               initial={{ opacity: 0, x: 28 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.08, duration: 0.24 }}

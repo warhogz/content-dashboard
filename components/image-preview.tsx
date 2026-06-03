@@ -27,7 +27,8 @@ export function ImagePreview({
   aspectRatio,
   heightPx,
   cropMode,
-  fetchPriority = "auto"
+  fetchPriority = "auto",
+  className
 }: {
   src?: string | null;
   alt: string;
@@ -35,6 +36,7 @@ export function ImagePreview({
   heightPx: number;
   cropMode: CardCropMode;
   fetchPriority?: "high" | "auto" | "low";
+  className?: string;
 }) {
   const customHeight = Math.min(heightPx, 360);
   const previewHeight = Math.min(heightPx, 280);
@@ -82,7 +84,7 @@ export function ImagePreview({
   }, [currentSrc, fetchPriority]);
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-3xl border", ratioClass(aspectRatio))} style={style}>
+    <div className={cn("relative w-full overflow-hidden rounded-3xl border", ratioClass(aspectRatio), className)} style={style}>
       {currentSrc ? (
         <>
           <div
@@ -98,6 +100,7 @@ export function ImagePreview({
           <img
             src={currentSrc}
             alt={alt}
+            draggable={false}
             loading={fetchPriority === "high" ? "eager" : "lazy"}
             fetchPriority={fetchPriority}
             decoding="async"

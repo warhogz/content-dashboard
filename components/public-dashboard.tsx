@@ -317,7 +317,9 @@ export function PublicDashboard({
 
       {hasCards ? (
         viewMode === "canvas" ? (
-          <BoardView sections={canvasSections} onOpenCard={setSelectedCard} />
+          <div className="relative left-1/2 w-screen -translate-x-1/2">
+            <BoardView sections={canvasSections} onOpenCard={setSelectedCard} />
+          </div>
         ) : isArchiveMode ? (
           <section
             className="space-y-5 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
