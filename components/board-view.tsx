@@ -48,14 +48,44 @@ const CARD_GAP_Y = 40;
 const HEADER_HEIGHT = 94;
 const SECTION_GAP_X = 240;
 const SECTION_GAP_Y = 180;
-const WORLD_SIZE = 24000;
-const WORLD_HALF = WORLD_SIZE / 2;
-const MIN_SCALE = 0.22;
+const MIN_SCALE = 0.24;
 const MAX_SCALE = 2.4;
 const DRAG_THRESHOLD = 7;
+const PAN_LIMIT = 96000;
+const WORLD_GRID_SIZE = 46;
+const GLOW_FIELD_SIZE = 1200;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function sanitizeNumber(value: unknown, fallback = 0) {
+  return isFiniteNumber(value) ? value : fallback;
+}
+
+function wrapOffset(value: number, size: number) {
+  const safeValue = sanitizeNumber(value);
+  return ((safeValue % size) + size) % size;
+}
+
+function sanitizeTransform(
+  next: { x: number; y: number; scale: number },
+  fallback: { x: number; y: number; scale: number }
+) {
+  const fallbackScale = isFiniteNumber(fallback.scale) && fallback.scale > 0 ? fallback.scale : 1;
+  const safeScale = clamp(sanitizeNumber(next.scale, fallbackScale), MIN_SCALE, MAX_SCALE);
+  const safeX = clamp(sanitizeNumber(next.x, fallback.x), -PAN_LIMIT, PAN_LIMIT);
+  const safeY = clamp(sanitizeNumber(next.y, fallback.y), -PAN_LIMIT, PAN_LIMIT);
+
+  return {
+    x: safeX,
+    y: safeY,
+    scale: safeScale
+  };
 }
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -208,12 +238,13 @@ export function BoardView({
   const cardsById = useMemo(() => new Map(layout.cards.map((item) => [item.id, item.card])), [layout.cards]);
 
   const commitTransform = (next: { x: number; y: number; scale: number }) => {
-    transformRef.current = next;
+    const safeNext = sanitizeTransform(next, transformRef.current);
+    transformRef.current = safeNext;
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
     animationFrameRef.current = requestAnimationFrame(() => {
-      setTransform(next);
+      setTransform(safeNext);
     });
   };
 
@@ -228,7 +259,8 @@ export function BoardView({
     stopInertia();
 
     const tick = () => {
-      const { x, y } = velocityRef.current;
+      const x = sanitizeNumber(velocityRef.current.x);
+      const y = sanitizeNumber(velocityRef.current.y);
       if (Math.abs(x) < 0.08 && Math.abs(y) < 0.08) {
         velocityRef.current = { x: 0, y: 0 };
         inertiaFrameRef.current = null;
@@ -254,11 +286,13 @@ export function BoardView({
   };
 
   const zoomAt = (targetScale: number, originX: number, originY: number, baseTransform = transformRef.current) => {
-    if (!viewport.width || !viewport.height) return;
+    if (!viewport.width || !viewport.height || !isFiniteNumber(originX) || !isFiniteNumber(originY)) return;
 
-    const nextScale = clamp(targetScale, MIN_SCALE, MAX_SCALE);
-    const worldX = (originX - viewport.width / 2 - baseTransform.x) / baseTransform.scale;
-    const worldY = (originY - viewport.height / 2 - baseTransform.y) / baseTransform.scale;
+    const safeBase = sanitizeTransform(baseTransform, transformRef.current);
+    const nextScale = clamp(sanitizeNumber(targetScale, safeBase.scale), MIN_SCALE, MAX_SCALE);
+    const baseScale = safeBase.scale || 1;
+    const worldX = (originX - viewport.width / 2 - safeBase.x) / baseScale;
+    const worldY = (originY - viewport.height / 2 - safeBase.y) / baseScale;
 
     commitTransform({
       scale: nextScale,
@@ -343,7 +377,8 @@ export function BoardView({
     if (pointersRef.current.size === 2 && pinchRef.current) {
       const [first, second] = [...pointersRef.current.values()];
       const pinchMidpoint = midpoint(first, second);
-      const nextScale = pinchRef.current.scale * (distance(first, second) / pinchRef.current.distance);
+      const nextDistance = Math.max(1, distance(first, second));
+      const nextScale = pinchRef.current.scale * (nextDistance / Math.max(1, pinchRef.current.distance));
       const clampedScale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
 
       commitTransform({
@@ -372,8 +407,8 @@ export function BoardView({
       };
     }
 
-    const deltaX = event.clientX - dragStateRef.current.lastX;
-    const deltaY = event.clientY - dragStateRef.current.lastY;
+    const deltaX = sanitizeNumber(event.clientX - dragStateRef.current.lastX);
+    const deltaY = sanitizeNumber(event.clientY - dragStateRef.current.lastY);
     const current = transformRef.current;
 
     commitTransform({
@@ -389,8 +424,8 @@ export function BoardView({
     if (lastDragSampleRef.current) {
       const elapsed = Math.max(16, now - lastDragSampleRef.current.time);
       velocityRef.current = {
-        x: ((event.clientX - lastDragSampleRef.current.x) / elapsed) * 16,
-        y: ((event.clientY - lastDragSampleRef.current.y) / elapsed) * 16
+        x: sanitizeNumber(((event.clientX - lastDragSampleRef.current.x) / elapsed) * 16),
+        y: sanitizeNumber(((event.clientY - lastDragSampleRef.current.y) / elapsed) * 16)
       };
     }
 
@@ -434,50 +469,55 @@ export function BoardView({
     const rect = viewportRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const originX = event.clientX - rect.left;
-    const originY = event.clientY - rect.top;
+    const originX = sanitizeNumber(event.clientX - rect.left);
+    const originY = sanitizeNumber(event.clientY - rect.top);
 
     const isTrackpadPan = !event.ctrlKey && (Math.abs(event.deltaX) > 0 || Math.abs(event.deltaY) < 18);
     if (isTrackpadPan) {
       const current = transformRef.current;
       commitTransform({
         ...current,
-        x: current.x - event.deltaX,
-        y: current.y - event.deltaY
+        x: current.x - sanitizeNumber(event.deltaX),
+        y: current.y - sanitizeNumber(event.deltaY)
       });
       return;
     }
 
-    const zoomFactor = Math.exp(-event.deltaY * 0.00125);
+    const zoomFactor = Math.exp(-sanitizeNumber(event.deltaY) * 0.00125);
     zoomAt(transformRef.current.scale * zoomFactor, originX, originY);
   };
 
   const screenCards = useMemo(() => {
+    const safeTransform = sanitizeTransform(transform, transformRef.current);
     return layout.cards.map((item) => {
-      const offsetX = transform.x + (item.x + CARD_WIDTH / 2) * transform.scale;
-      const offsetY = transform.y + (item.y + CARD_HEIGHT / 2) * transform.scale;
+      const offsetX = safeTransform.x + (item.x + CARD_WIDTH / 2) * safeTransform.scale;
+      const offsetY = safeTransform.y + (item.y + CARD_HEIGHT / 2) * safeTransform.scale;
 
       return {
         id: item.id,
-        distance: Math.hypot(offsetX, offsetY)
+        distance: sanitizeNumber(Math.hypot(offsetX, offsetY), Number.POSITIVE_INFINITY)
       };
     });
   }, [layout.cards, transform]);
 
+  const dominantFocusCandidate = useMemo(() => {
+    if (!screenCards.length) return null;
+    return screenCards.reduce((nearest, item) => (item.distance < nearest.distance ? item : nearest), screenCards[0]);
+  }, [screenCards]);
+
   useEffect(() => {
-    if (!screenCards.length) {
+    if (!screenCards.length || !dominantFocusCandidate) {
       focusedCardIdRef.current = null;
       setFocusedCardId(null);
       return;
     }
 
-    const nearest = [...screenCards].sort((a, b) => a.distance - b.distance)[0];
     const current = focusedCardIdRef.current ? screenCards.find((item) => item.id === focusedCardIdRef.current) : null;
     const focusRadius = Math.max(280, Math.min(viewport.width || 0, viewport.height || 0) * 0.44);
 
-    let nextId = nearest.id;
-    if (current && current.id !== nearest.id) {
-      const nearestClearlyBetter = nearest.distance + 72 < current.distance;
+    let nextId = dominantFocusCandidate.id;
+    if (current && current.id !== dominantFocusCandidate.id) {
+      const nearestClearlyBetter = dominantFocusCandidate.distance + 72 < current.distance;
       const currentStillRelevant = current.distance < focusRadius * 1.18;
       if (!nearestClearlyBetter && currentStillRelevant) {
         nextId = current.id;
@@ -488,12 +528,12 @@ export function BoardView({
       focusedCardIdRef.current = nextId;
       setFocusedCardId(nextId);
     }
-  }, [screenCards, viewport.height, viewport.width]);
+  }, [dominantFocusCandidate, screenCards, viewport.height, viewport.width]);
 
   const cardsWithFocus = useMemo(() => {
-    const dominantCard = screenCards.find((item) => item.id === focusedCardId) ?? screenCards[0] ?? null;
+    const dominantCard = screenCards.find((item) => item.id === focusedCardId) ?? dominantFocusCandidate ?? null;
     const focusRadius = Math.max(280, Math.min(viewport.width || 0, viewport.height || 0) * 0.44);
-    const focusStrength = dominantCard ? Math.max(0, 1 - dominantCard.distance / focusRadius) : 0;
+    const focusStrength = dominantCard ? Math.max(0, 1 - sanitizeNumber(dominantCard.distance) / focusRadius) : 0;
 
     return layout.cards.map((item, index) => {
       const isFocused = item.id === focusedCardId;
@@ -508,7 +548,13 @@ export function BoardView({
         zIndex: isFocused ? 40 : 10 + (index % 6)
       };
     });
-  }, [focusedCardId, layout.cards, screenCards, viewport.height, viewport.width]);
+  }, [dominantFocusCandidate, focusedCardId, layout.cards, screenCards, viewport.height, viewport.width]);
+
+  const safeTransform = useMemo(() => sanitizeTransform(transform, transformRef.current), [transform]);
+  const gridOffsetX = wrapOffset(safeTransform.x * 0.18, WORLD_GRID_SIZE);
+  const gridOffsetY = wrapOffset(safeTransform.y * 0.18, WORLD_GRID_SIZE);
+  const glowOffsetX = wrapOffset(safeTransform.x * 0.05, GLOW_FIELD_SIZE);
+  const glowOffsetY = wrapOffset(safeTransform.y * 0.05, GLOW_FIELD_SIZE);
 
   return (
     <div className="relative">
@@ -531,6 +577,17 @@ export function BoardView({
             "radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--theme-glow) 18%, transparent), transparent 24%), radial-gradient(circle at 50% 78%, color-mix(in srgb, var(--theme-glow-soft) 16%, transparent), transparent 30%), linear-gradient(180deg, rgba(10, 4, 8, .22), rgba(6, 2, 6, .44))"
         }}
       >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--theme-text) 12%, transparent) 1px, transparent 0), radial-gradient(circle at 22% 28%, color-mix(in srgb, var(--theme-glow) 18%, transparent), transparent 26%), radial-gradient(circle at 76% 72%, color-mix(in srgb, var(--theme-accent) 12%, transparent), transparent 30%)",
+            backgroundSize: `${WORLD_GRID_SIZE}px ${WORLD_GRID_SIZE}px, ${GLOW_FIELD_SIZE}px ${GLOW_FIELD_SIZE}px, 1600px 1600px`,
+            backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px, ${glowOffsetX}px ${glowOffsetY}px, ${wrapOffset(safeTransform.x * 0.035 + 380, 1600)}px ${wrapOffset(safeTransform.y * 0.035 + 540, 1600)}px`,
+            opacity: 0.82
+          }}
+        />
+
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between px-4 pt-4 sm:px-6 sm:pt-5">
           <div
             className="rounded-full border px-4 py-2 text-[11px] uppercase tracking-[0.22em] backdrop-blur-xl"
@@ -559,24 +616,10 @@ export function BoardView({
         <div
           className="absolute left-0 top-0 will-change-transform"
           style={{
-            transform: `translate3d(${viewport.width / 2 + transform.x}px, ${viewport.height / 2 + transform.y}px, 0) scale(${transform.scale})`,
+            transform: `translate3d(${viewport.width / 2 + safeTransform.x}px, ${viewport.height / 2 + safeTransform.y}px, 0) scale(${safeTransform.scale})`,
             transformOrigin: "0 0"
           }}
         >
-          <div
-            className="pointer-events-none absolute"
-            style={{
-              width: WORLD_SIZE,
-              height: WORLD_SIZE,
-              transform: `translate3d(${-WORLD_HALF}px, ${-WORLD_HALF}px, 0)`,
-              backgroundImage:
-                "radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--theme-text) 12%, transparent) 1px, transparent 0), radial-gradient(circle at 22% 28%, color-mix(in srgb, var(--theme-glow) 18%, transparent), transparent 26%), radial-gradient(circle at 76% 72%, color-mix(in srgb, var(--theme-accent) 12%, transparent), transparent 30%)",
-              backgroundSize: "46px 46px, 1100px 1100px, 1500px 1500px",
-              backgroundPosition: "0 0, 0 0, 380px 540px",
-              opacity: 0.82
-            }}
-          />
-
           {layout.labels.map((label) => (
             <div
               key={label.id}
