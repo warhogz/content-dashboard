@@ -54,6 +54,12 @@ const DRAG_THRESHOLD = 7;
 const PAN_LIMIT = 96000;
 const WORLD_GRID_SIZE = 46;
 const GLOW_FIELD_SIZE = 1200;
+const CULL_MARGIN = 280;
+const MIN_CARD_RENDER_WIDTH = 24;
+const MIN_CARD_RENDER_HEIGHT = 32;
+const COMPACT_CARD_WIDTH = 128;
+const FULL_CARD_WIDTH = 188;
+const FOCUS_MIN_SCALE = 0.38;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -197,10 +203,12 @@ function buildCanvasLayout(sections: CanvasSection[]) {
 
 export function BoardView({
   sections,
-  onOpenCard
+  onOpenCard,
+  storageKey = "public-canvas"
 }: {
   sections: CanvasSection[];
   onOpenCard: (card: ContentCard) => void;
+  storageKey?: string;
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -324,6 +332,39 @@ export function BoardView({
       if (inertiaFrameRef.current) cancelAnimationFrame(inertiaFrameRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.sessionStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<{ x: number; y: number; scale: number }>;
+      const restored = sanitizeTransform(
+        {
+          x: sanitizeNumber(parsed.x),
+          y: sanitizeNumber(parsed.y),
+          scale: sanitizeNumber(parsed.scale, 1)
+        },
+        { x: 0, y: 0, scale: 1 }
+      );
+      transformRef.current = restored;
+      setTransform(restored);
+    } catch {
+      // Ignore corrupted persisted canvas state and continue with defaults.
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const safe = sanitizeTransform(transform, transformRef.current);
+      window.sessionStorage.setItem(storageKey, JSON.stringify(safe));
+    } catch {
+      // Ignore storage quota and privacy mode errors.
+    }
+  }, [storageKey, transform]);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     stopInertia();
@@ -487,23 +528,41 @@ export function BoardView({
     zoomAt(transformRef.current.scale * zoomFactor, originX, originY);
   };
 
+  const safeTransform = useMemo(() => sanitizeTransform(transform, transformRef.current), [transform]);
+
   const screenCards = useMemo(() => {
-    const safeTransform = sanitizeTransform(transform, transformRef.current);
     return layout.cards.map((item) => {
-      const offsetX = safeTransform.x + (item.x + CARD_WIDTH / 2) * safeTransform.scale;
-      const offsetY = safeTransform.y + (item.y + CARD_HEIGHT / 2) * safeTransform.scale;
+      const left = viewport.width / 2 + safeTransform.x + item.x * safeTransform.scale;
+      const top = viewport.height / 2 + safeTransform.y + item.y * safeTransform.scale;
+      const projectedWidth = CARD_WIDTH * safeTransform.scale;
+      const projectedHeight = CARD_HEIGHT * safeTransform.scale;
+      const centerX = left + projectedWidth / 2;
+      const centerY = top + projectedHeight / 2;
+      const visible =
+        left <= viewport.width + CULL_MARGIN &&
+        top <= viewport.height + CULL_MARGIN &&
+        left + projectedWidth >= -CULL_MARGIN &&
+        top + projectedHeight >= -CULL_MARGIN &&
+        projectedWidth >= MIN_CARD_RENDER_WIDTH &&
+        projectedHeight >= MIN_CARD_RENDER_HEIGHT;
+      const renderMode = projectedWidth < COMPACT_CARD_WIDTH ? "minimal" : projectedWidth < FULL_CARD_WIDTH ? "compact" : "full";
 
       return {
         id: item.id,
-        distance: sanitizeNumber(Math.hypot(offsetX, offsetY), Number.POSITIVE_INFINITY)
+        distance: sanitizeNumber(Math.hypot(centerX - viewport.width / 2, centerY - viewport.height / 2), Number.POSITIVE_INFINITY),
+        projectedWidth,
+        projectedHeight,
+        visible,
+        renderMode
       };
     });
-  }, [layout.cards, transform]);
+  }, [layout.cards, transform, viewport.height, viewport.width]);
 
   const dominantFocusCandidate = useMemo(() => {
-    if (!screenCards.length) return null;
-    return screenCards.reduce((nearest, item) => (item.distance < nearest.distance ? item : nearest), screenCards[0]);
-  }, [screenCards]);
+    const focusableCards = screenCards.filter((item) => item.visible && item.renderMode !== "minimal");
+    if (!focusableCards.length || safeTransform.scale < FOCUS_MIN_SCALE) return null;
+    return focusableCards.reduce((nearest, item) => (item.distance < nearest.distance ? item : nearest), focusableCards[0]);
+  }, [safeTransform.scale, screenCards]);
 
   useEffect(() => {
     if (!screenCards.length || !dominantFocusCandidate) {
@@ -536,21 +595,25 @@ export function BoardView({
     const focusStrength = dominantCard ? Math.max(0, 1 - sanitizeNumber(dominantCard.distance) / focusRadius) : 0;
 
     return layout.cards.map((item, index) => {
+      const metrics = screenCards.find((screenCard) => screenCard.id === item.id);
       const isFocused = item.id === focusedCardId;
       const intensity = isFocused ? focusStrength : 0;
+      const renderMode = metrics?.renderMode ?? "full";
+      const isVisible = metrics?.visible ?? false;
 
       return {
         ...item,
-        focusScale: isFocused ? 1 + intensity * 0.12 : 1,
+        focusScale: isFocused ? 1 + intensity * 0.1 : 1,
         focusOpacity: isFocused ? 0.96 + intensity * 0.04 : 0.84,
         focusBrightness: isFocused ? 1.02 + intensity * 0.16 : 0.92,
         focusGlow: isFocused ? 0.24 + intensity * 0.26 : 0.07,
-        zIndex: isFocused ? 40 : 10 + (index % 6)
+        zIndex: isFocused ? 40 : 10 + (index % 6),
+        renderMode,
+        isVisible
       };
     });
   }, [dominantFocusCandidate, focusedCardId, layout.cards, screenCards, viewport.height, viewport.width]);
 
-  const safeTransform = useMemo(() => sanitizeTransform(transform, transformRef.current), [transform]);
   const gridOffsetX = wrapOffset(safeTransform.x * 0.18, WORLD_GRID_SIZE);
   const gridOffsetY = wrapOffset(safeTransform.y * 0.18, WORLD_GRID_SIZE);
   const glowOffsetX = wrapOffset(safeTransform.x * 0.05, GLOW_FIELD_SIZE);
@@ -614,10 +677,11 @@ export function BoardView({
         </div>
 
         <div
-          className="absolute left-0 top-0 will-change-transform"
+          className="absolute left-0 top-0"
           style={{
             transform: `translate3d(${viewport.width / 2 + safeTransform.x}px, ${viewport.height / 2 + safeTransform.y}px, 0) scale(${safeTransform.scale})`,
-            transformOrigin: "0 0"
+            transformOrigin: "0 0",
+            willChange: dragging ? "transform" : "auto"
           }}
         >
           {layout.labels.map((label) => (
@@ -644,7 +708,7 @@ export function BoardView({
             </div>
           ))}
 
-          {cardsWithFocus.map((item, index) => (
+          {cardsWithFocus.filter((item) => item.isVisible).map((item, index) => (
             <div
               key={item.id}
               role="button"
@@ -665,49 +729,81 @@ export function BoardView({
                 transformOrigin: "center center",
                 borderColor: `${item.sectionColor}${item.focusOpacity > 0.9 ? "4a" : "30"}`,
                 opacity: item.focusOpacity,
-                filter: `brightness(${item.focusBrightness}) saturate(${1 + item.focusGlow * 0.18})`,
+                filter: item.renderMode === "minimal" ? "none" : `brightness(${item.focusBrightness}) saturate(${1 + item.focusGlow * 0.18})`,
                 background: "var(--theme-card-bg)",
                 boxShadow:
-                  index < 8
+                  item.renderMode === "minimal"
+                    ? `0 10px 28px rgba(0,0,0,.18), 0 0 0 1px rgba(255,255,255,.03) inset`
+                    : index < 8
                     ? `var(--theme-shadow-lift), 0 0 38px color-mix(in srgb, ${item.sectionColor} ${Math.round(item.focusGlow * 100)}%, transparent)`
-                    : `var(--theme-shadow-lift), 0 0 24px color-mix(in srgb, ${item.sectionColor} ${Math.round(item.focusGlow * 70)}%, transparent)`
+                    : `var(--theme-shadow-lift), 0 0 24px color-mix(in srgb, ${item.sectionColor} ${Math.round(item.focusGlow * 70)}%, transparent)`,
+                contain: "layout paint style"
               }}
             >
-              <div className="pointer-events-none p-3">
-                <ImagePreview
-                  src={item.card.thumbnail_url}
-                  alt={item.card.title}
-                  aspectRatio="custom"
-                  heightPx={176}
-                  cropMode={item.card.crop_mode}
-                  fetchPriority={index < 6 ? "high" : "auto"}
-                />
-              </div>
-
-              <div className="pointer-events-none flex h-[172px] flex-col justify-between border-t px-4 py-3" style={{ borderColor: "var(--theme-border-soft)" }}>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    <TypeBadge type={item.card.type} />
-                    <StatusBadge status={item.card.status} />
-                    {item.card.project_key === "mena" ? (
-                      <Badge style={{ background: "color-mix(in srgb, var(--theme-accent) 14%, transparent)", color: "var(--theme-text)" }}>
-                        Mena
-                      </Badge>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold leading-6" style={{ color: "var(--theme-text)" }}>
-                      {item.card.title}
-                    </h3>
-                    {item.card.subtitle ? (
-                      <p className="mt-1 max-h-10 overflow-hidden text-xs leading-5" style={{ color: "var(--theme-text-muted)" }}>
-                        {item.card.subtitle}
-                      </p>
-                    ) : null}
+              {item.renderMode === "minimal" ? (
+                <div className="pointer-events-none flex h-full flex-col justify-between p-3">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.sectionColor, boxShadow: `0 0 12px ${item.sectionColor}` }} />
+                  <div className="rounded-2xl border px-3 py-2 text-[10px] uppercase tracking-[0.18em]" style={{ borderColor: "var(--theme-border-soft)", color: "var(--theme-label)" }}>
+                    {item.card.type?.title ?? "Card"}
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {item.renderMode === "full" ? (
+                    <div className="pointer-events-none p-3">
+                      <ImagePreview
+                        src={item.card.thumbnail_url}
+                        alt={item.card.title}
+                        aspectRatio="custom"
+                        heightPx={176}
+                        cropMode={item.card.crop_mode}
+                        fetchPriority={index < 4 ? "high" : "auto"}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="pointer-events-none mx-3 mt-3 h-[132px] rounded-[24px] border"
+                      style={{
+                        borderColor: "var(--theme-border-soft)",
+                        background: `linear-gradient(135deg, color-mix(in srgb, ${item.sectionColor} 22%, transparent), color-mix(in srgb, var(--theme-surface-soft) 94%, transparent))`
+                      }}
+                    />
+                  )}
+
+                  <div className="pointer-events-none flex h-[172px] flex-col justify-between border-t px-4 py-3" style={{ borderColor: "var(--theme-border-soft)" }}>
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {item.renderMode === "full" ? (
+                          <>
+                            <TypeBadge type={item.card.type} />
+                            <StatusBadge status={item.card.status} />
+                            {item.card.project_key === "mena" ? (
+                              <Badge style={{ background: "color-mix(in srgb, var(--theme-accent) 14%, transparent)", color: "var(--theme-text)" }}>
+                                Mena
+                              </Badge>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--theme-label)" }}>
+                            {item.card.type?.title ?? "Card"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-semibold leading-6" style={{ color: "var(--theme-text)" }}>
+                          {item.card.title}
+                        </h3>
+                        {item.renderMode === "full" && item.card.subtitle ? (
+                          <p className="mt-1 max-h-10 overflow-hidden text-xs leading-5" style={{ color: "var(--theme-text-muted)" }}>
+                            {item.card.subtitle}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BoardView } from "@/components/board-view";
 import { CardItem } from "@/components/card-item";
 import { EmptyState } from "@/components/empty-state";
@@ -20,6 +20,7 @@ type ContentMode = "live" | "archive";
 type ViewMode = "grid" | "canvas";
 
 const heroStatusSlugs = ["done", "waiting-feedback", "revisions"] as const;
+const PUBLIC_DASHBOARD_STATE_KEY = "public-dashboard-state";
 
 function cardDateValue(card: ContentCard) {
   return card.created_at ? new Date(card.created_at).getTime() : 0;
@@ -66,6 +67,53 @@ export function PublicDashboard({
   const [contentMode, setContentMode] = useState<ContentMode>("live");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedCard, setSelectedCard] = useState<ContentCard | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.sessionStorage.getItem(PUBLIC_DASHBOARD_STATE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as Partial<{
+        selectedStatus: string;
+        selectedType: string;
+        sortMode: CardSortMode;
+        projectScope: ProjectScope;
+        contentMode: ContentMode;
+        viewMode: ViewMode;
+      }>;
+
+      if (parsed.selectedStatus !== undefined) setSelectedStatus(parsed.selectedStatus);
+      if (parsed.selectedType !== undefined) setSelectedType(parsed.selectedType);
+      if (parsed.sortMode === "oldest" || parsed.sortMode === "newest") setSortMode(parsed.sortMode);
+      if (parsed.projectScope === "all" || parsed.projectScope === "mena") setProjectScope(parsed.projectScope);
+      if (parsed.contentMode === "live" || parsed.contentMode === "archive") setContentMode(parsed.contentMode);
+      if (parsed.viewMode === "grid" || parsed.viewMode === "canvas") setViewMode(parsed.viewMode);
+    } catch {
+      // Ignore invalid persisted dashboard state.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.sessionStorage.setItem(
+        PUBLIC_DASHBOARD_STATE_KEY,
+        JSON.stringify({
+          selectedStatus,
+          selectedType,
+          sortMode,
+          projectScope,
+          contentMode,
+          viewMode
+        })
+      );
+    } catch {
+      // Ignore storage quota and privacy mode failures.
+    }
+  }, [contentMode, projectScope, selectedStatus, selectedType, sortMode, viewMode]);
 
   const projectKey = projectScope === "mena" ? "mena" : "main";
 
@@ -155,7 +203,7 @@ export function PublicDashboard({
 
   return (
     <div className="space-y-8">
-      <ImagePreload urls={preloadUrls} concurrency={8} priorityCount={12} />
+      <ImagePreload urls={preloadUrls} concurrency={viewMode === "canvas" ? 4 : 8} priorityCount={viewMode === "canvas" ? 6 : 12} />
 
       <section
         className="overflow-hidden rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6 lg:p-8"
@@ -318,7 +366,11 @@ export function PublicDashboard({
       {hasCards ? (
         viewMode === "canvas" ? (
           <div className="relative left-1/2 w-screen -translate-x-1/2">
-            <BoardView sections={canvasSections} onOpenCard={setSelectedCard} />
+            <BoardView
+              sections={canvasSections}
+              onOpenCard={setSelectedCard}
+              storageKey={`public-canvas:${projectScope}:${contentMode}:${selectedStatus || "all"}:${selectedType || "all"}:${sortMode}`}
+            />
           </div>
         ) : isArchiveMode ? (
           <section
