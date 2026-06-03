@@ -14,9 +14,10 @@ import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
 
 export type CardSortMode = "oldest" | "newest";
+
 type ProjectScope = "all" | "mena";
 type ContentMode = "live" | "archive";
-type ViewMode = "grid" | "board";
+type ViewMode = "grid" | "canvas";
 
 const heroStatusSlugs = ["done", "waiting-feedback", "revisions"] as const;
 
@@ -107,14 +108,14 @@ export function PublicDashboard({
     return statuses.filter((status) => ids.has(status.id));
   }, [filteredCards, selectedStatus, statuses]);
 
-  const boardSections = useMemo(() => {
+  const canvasSections = useMemo(() => {
     if (contentMode === "archive") {
       return [
         {
           id: "archive",
           title: "Архив",
           color: "#c12657",
-          subtitle: "Последние архивированные сверху",
+          subtitle: "Последние архивированные карточки сверху",
           cards: archiveProjectCards
         }
       ];
@@ -124,6 +125,7 @@ export function PublicDashboard({
       id: status.id,
       title: status.title,
       color: status.color,
+      subtitle: `${filteredCards.filter((card) => card.status_id === status.id).length} карточек`,
       cards: sortLiveCards(
         filteredCards.filter((card) => card.status_id === status.id),
         sortMode
@@ -172,7 +174,7 @@ export function PublicDashboard({
             <div className="grid w-full gap-3 sm:grid-cols-3">
               {[
                 { label: "В архиве", value: archiveProjectCards.length, color: "#c12657" },
-                { label: "Порядок", value: "Новые сверху", color: "#f59e0b" },
+                { label: "Режим", value: viewMode === "canvas" ? "Canvas" : "Grid", color: "#f59e0b" },
                 { label: "Проект", value: projectScope === "mena" ? "Mena" : "LA", color: "#8b5cf6" }
               ].map((item) => (
                 <div
@@ -256,7 +258,7 @@ export function PublicDashboard({
               onChange={setViewMode}
               options={[
                 { value: "grid", label: "Grid" },
-                { value: "board", label: "Board" }
+                { value: "canvas", label: "Canvas" }
               ]}
             />
           </div>
@@ -278,6 +280,7 @@ export function PublicDashboard({
                 </option>
               ))}
             </Select>
+
             <Select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
               <option value="">Все типы</option>
               {types.map((type) => (
@@ -286,10 +289,12 @@ export function PublicDashboard({
                 </option>
               ))}
             </Select>
+
             <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as CardSortMode)}>
               <option value="oldest">Сначала старые</option>
               <option value="newest">Сначала новые</option>
             </Select>
+
             <Button
               className="md:col-span-2 xl:col-span-1"
               variant="outline"
@@ -305,14 +310,14 @@ export function PublicDashboard({
           </div>
         ) : (
           <div className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-            Архив — отдельный режим. Здесь не применяются фильтры статусов, типов и обычная сортировка.
+            Архив — отдельный режим. Здесь не применяются обычные статусные фильтры и сортировка, но Canvas использует ту же карточную выборку.
           </div>
         )}
       </div>
 
       {hasCards ? (
-        viewMode === "board" ? (
-          <BoardView sections={boardSections} onOpenCard={setSelectedCard} />
+        viewMode === "canvas" ? (
+          <BoardView sections={canvasSections} onOpenCard={setSelectedCard} />
         ) : isArchiveMode ? (
           <section
             className="space-y-5 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
