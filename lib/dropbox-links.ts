@@ -1,4 +1,5 @@
 const DROPBOX_HOSTS = new Set(["www.dropbox.com", "dropbox.com", "dl.dropboxusercontent.com"]);
+export type DropboxPreviewVariant = "canvas-512";
 
 export function isDropboxUrl(value?: string | null) {
   if (!value) return false;
@@ -30,12 +31,25 @@ export function normalizeDropboxSharedLink(value: string) {
   }
 }
 
-export function buildDropboxThumbnailProxyUrl(value: string) {
-  return `/api/dropbox-thumbnail?url=${encodeURIComponent(value)}`;
+export function buildDropboxThumbnailProxyUrl(value: string, variant?: DropboxPreviewVariant) {
+  const params = new URLSearchParams({
+    url: value
+  });
+
+  if (variant) {
+    params.set("variant", variant);
+  }
+
+  return `/api/dropbox-thumbnail?${params.toString()}`;
 }
 
-export function resolveCardPreviewUrl(value?: string | null) {
+export function resolveCardPreviewUrl(
+  value?: string | null,
+  options?: {
+    variant?: DropboxPreviewVariant;
+  }
+) {
   if (!value) return value ?? null;
   if (!isDropboxUrl(value)) return value;
-  return buildDropboxThumbnailProxyUrl(value);
+  return buildDropboxThumbnailProxyUrl(value, options?.variant);
 }

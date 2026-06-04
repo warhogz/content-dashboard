@@ -68,7 +68,7 @@ function truncate(value: string | null | undefined, length: number) {
 function loadTexture(url?: string | null) {
   if (!url) return Promise.resolve<Texture | null>(null);
 
-  const resolved = resolveCardPreviewUrl(url);
+  const resolved = resolveCardPreviewUrl(url, { variant: "canvas-512" });
   if (!resolved) return Promise.resolve<Texture | null>(null);
 
   const cached = textureCache.get(resolved);
