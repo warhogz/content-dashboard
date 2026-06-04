@@ -14,12 +14,27 @@ type CanvasSection = {
   cards: ContentCard[];
 };
 
+type CanvasCardMetrics = {
+  width: number;
+  height: number;
+  imageHeight: number;
+};
+
+type CanvasLayoutCard = {
+  card: ContentCard;
+  color: number;
+  centerX: number;
+  centerY: number;
+  metrics: CanvasCardMetrics;
+};
+
 type CardNode = {
   card: ContentCard;
   centerX: number;
   centerY: number;
   width: number;
   height: number;
+  imageHeight: number;
   container: Container;
   frame: Graphics;
   accent: Graphics;
@@ -30,10 +45,7 @@ type CardNode = {
   scale: number;
 };
 
-const CARD_WIDTH = 288;
-const CARD_HEIGHT = 392;
 const CARD_RADIUS = 28;
-const CARD_IMAGE_HEIGHT = 188;
 const SECTION_GAP_X = 180;
 const CARD_GAP_X = 34;
 const CARD_GAP_Y = 38;
@@ -60,7 +72,41 @@ function sanitize(value: number, fallback = 0) {
 
 function truncate(value: string | null | undefined, length: number) {
   if (!value) return "";
-  return value.length > length ? `${value.slice(0, length - 1)}…` : value;
+  return value.length > length ? `${value.slice(0, length - 1)}...` : value;
+}
+
+function getCanvasCardMetrics(card: ContentCard): CanvasCardMetrics {
+  const typeSlug = card.type?.slug;
+
+  if (typeSlug === "reels" || card.aspect_ratio === "9:16") {
+    return {
+      width: 264,
+      height: 454,
+      imageHeight: 264
+    };
+  }
+
+  if (typeSlug === "youtube" || card.aspect_ratio === "16:9") {
+    return {
+      width: 344,
+      height: 366,
+      imageHeight: 182
+    };
+  }
+
+  if (typeSlug === "carousel" || card.aspect_ratio === "4:5") {
+    return {
+      width: 296,
+      height: 404,
+      imageHeight: 214
+    };
+  }
+
+  return {
+    width: 286,
+    height: 388,
+    imageHeight: 198
+  };
 }
 
 function loadTexture(url?: string | null) {
@@ -95,20 +141,20 @@ function loadTexture(url?: string | null) {
   });
 }
 
-function createCardTexturePlaceholder(color: number) {
+function createCardTexturePlaceholder(width: number, imageHeight: number, color: number) {
   const placeholder = new Graphics();
   placeholder.beginFill(color, 0.14);
-  placeholder.drawRoundedRect(0, 0, CARD_WIDTH - 28, CARD_IMAGE_HEIGHT, 22);
+  placeholder.drawRoundedRect(0, 0, width - 28, imageHeight, 22);
   placeholder.endFill();
   placeholder.beginFill(0xffffff, 0.06);
-  placeholder.drawRoundedRect(18, 18, CARD_WIDTH - 64, 18, 9);
-  placeholder.drawRoundedRect(18, 48, CARD_WIDTH - 120, 14, 7);
+  placeholder.drawRoundedRect(18, 18, Math.max(width - 64, 72), 18, 9);
+  placeholder.drawRoundedRect(18, 48, Math.max(width - 120, 54), 14, 7);
   placeholder.endFill();
   return placeholder;
 }
 
 function buildLayout(sections: CanvasSection[]) {
-  const cards: Array<{ card: ContentCard; color: number; centerX: number; centerY: number }> = [];
+  const cards: CanvasLayoutCard[] = [];
   const labels: Array<{ title: string; subtitle: string; color: number; x: number; y: number; width: number }> = [];
   let sectionCursorX = 0;
 
@@ -124,36 +170,57 @@ function buildLayout(sections: CanvasSection[]) {
     const sectionY = 0;
     const columns = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(Math.max(section.cards.length, 1)))));
     const rows = Math.max(1, Math.ceil(section.cards.length / columns));
-    const sectionWidth = columns * CARD_WIDTH + Math.max(0, columns - 1) * CARD_GAP_X;
-    const sectionHeight = 94 + rows * CARD_HEIGHT + Math.max(0, rows - 1) * CARD_GAP_Y;
+    const sectionCards = section.cards.map((card) => ({
+      card,
+      metrics: getCanvasCardMetrics(card)
+    }));
+    const columnWidths = Array.from({ length: columns }, () => 0);
+    const rowHeights = Array.from({ length: rows }, () => 0);
+
+    sectionCards.forEach(({ metrics }, cardIndex) => {
+      const column = cardIndex % columns;
+      const row = Math.floor(cardIndex / columns);
+      columnWidths[column] = Math.max(columnWidths[column], metrics.width);
+      rowHeights[row] = Math.max(rowHeights[row], metrics.height);
+    });
+
+    const columnOffsets = columnWidths.map((_, columnIndex) =>
+      columnWidths.slice(0, columnIndex).reduce((sum, width) => sum + width, 0) + columnIndex * CARD_GAP_X
+    );
+    const rowOffsets = rowHeights.map((_, rowIndex) =>
+      rowHeights.slice(0, rowIndex).reduce((sum, height) => sum + height, 0) + rowIndex * CARD_GAP_Y
+    );
+    const sectionWidth = columnWidths.reduce((sum, width) => sum + width, 0) + Math.max(0, columns - 1) * CARD_GAP_X;
+    const sectionHeight = 94 + rowHeights.reduce((sum, height) => sum + height, 0) + Math.max(0, rows - 1) * CARD_GAP_Y;
 
     labels.push({
       title: section.title,
-      subtitle: section.subtitle || `${section.cards.length} карточек`,
+      subtitle: section.subtitle || `${section.cards.length} cards`,
       color,
       x: sectionX,
       y: sectionY,
       width: sectionWidth
     });
 
-    section.cards.forEach((card, cardIndex) => {
+    sectionCards.forEach(({ card, metrics }, cardIndex) => {
       const column = cardIndex % columns;
       const row = Math.floor(cardIndex / columns);
-      const x = sectionX + column * (CARD_WIDTH + CARD_GAP_X);
-      const y = sectionY + 94 + row * (CARD_HEIGHT + CARD_GAP_Y);
-      const centerX = x + CARD_WIDTH / 2;
-      const centerY = y + CARD_HEIGHT / 2;
+      const x = sectionX + columnOffsets[column];
+      const y = sectionY + 94 + rowOffsets[row];
+      const centerX = x + metrics.width / 2;
+      const centerY = y + metrics.height / 2;
 
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + CARD_WIDTH);
-      maxY = Math.max(maxY, y + CARD_HEIGHT);
+      maxX = Math.max(maxX, x + metrics.width);
+      maxY = Math.max(maxY, y + metrics.height);
 
       cards.push({
         card,
         color,
         centerX,
-        centerY
+        centerY,
+        metrics
       });
     });
 
@@ -241,14 +308,15 @@ function createSectionLabel(title: string, subtitle: string, color: number, widt
   return container;
 }
 
-function createCardNode(item: { card: ContentCard; color: number; centerX: number; centerY: number }, texture: Texture | null) {
+function createCardNode(item: CanvasLayoutCard, texture: Texture | null) {
+  const { width, height, imageHeight } = item.metrics;
   const container = new Container();
   container.position.set(item.centerX, item.centerY);
-  container.pivot.set(CARD_WIDTH / 2, CARD_HEIGHT / 2);
+  container.pivot.set(width / 2, height / 2);
 
   const glow = new Graphics();
   glow.beginFill(item.color, 0.12);
-  glow.drawRoundedRect(-8, -8, CARD_WIDTH + 16, CARD_HEIGHT + 16, CARD_RADIUS + 6);
+  glow.drawRoundedRect(-8, -8, width + 16, height + 16, CARD_RADIUS + 6);
   glow.endFill();
   glow.alpha = 0.14;
   container.addChild(glow);
@@ -256,13 +324,13 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
   const frame = new Graphics();
   frame.lineStyle(1, item.color, 0.24);
   frame.beginFill(0x14080f, 0.94);
-  frame.drawRoundedRect(0, 0, CARD_WIDTH, CARD_HEIGHT, CARD_RADIUS);
+  frame.drawRoundedRect(0, 0, width, height, CARD_RADIUS);
   frame.endFill();
   container.addChild(frame);
 
   const previewMask = new Graphics();
   previewMask.beginFill(0xffffff, 1);
-  previewMask.drawRoundedRect(14, 14, CARD_WIDTH - 28, CARD_IMAGE_HEIGHT, 22);
+  previewMask.drawRoundedRect(14, 14, width - 28, imageHeight, 22);
   previewMask.endFill();
   container.addChild(previewMask);
 
@@ -270,14 +338,14 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
   if (texture) {
     preview = new Sprite(texture);
     preview.position.set(14, 14);
-    const scale = Math.max((CARD_WIDTH - 28) / Math.max(texture.width, 1), CARD_IMAGE_HEIGHT / Math.max(texture.height, 1));
+    const scale = Math.max((width - 28) / Math.max(texture.width, 1), imageHeight / Math.max(texture.height, 1));
     preview.scale.set(scale);
-    preview.x = 14 + ((CARD_WIDTH - 28) - texture.width * scale) / 2;
-    preview.y = 14 + (CARD_IMAGE_HEIGHT - texture.height * scale) / 2;
+    preview.x = 14 + ((width - 28) - texture.width * scale) / 2;
+    preview.y = 14 + (imageHeight - texture.height * scale) / 2;
     preview.mask = previewMask;
     container.addChild(preview);
   } else {
-    const placeholder = createCardTexturePlaceholder(item.color);
+    const placeholder = createCardTexturePlaceholder(width, imageHeight, item.color);
     placeholder.position.set(14, 14);
     placeholder.mask = previewMask;
     container.addChild(placeholder);
@@ -285,18 +353,18 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
 
   const divider = new Graphics();
   divider.lineStyle(1, 0xffffff, 0.06);
-  divider.moveTo(0, CARD_IMAGE_HEIGHT + 30);
-  divider.lineTo(CARD_WIDTH, CARD_IMAGE_HEIGHT + 30);
+  divider.moveTo(0, imageHeight + 30);
+  divider.lineTo(width, imageHeight + 30);
   container.addChild(divider);
 
   const accent = new Graphics();
   accent.lineStyle(2, item.color, 0.9);
-  accent.drawRoundedRect(-2, -2, CARD_WIDTH + 4, CARD_HEIGHT + 4, CARD_RADIUS + 2);
+  accent.drawRoundedRect(-2, -2, width + 4, height + 4, CARD_RADIUS + 2);
   accent.alpha = 0.2;
   container.addChild(accent);
 
   const meta = new Text({
-    text: `${item.card.type?.title ?? "Card"} • ${item.card.status?.title ?? ""}`.trim(),
+    text: `${item.card.type?.title ?? "Card"} / ${item.card.status?.title ?? ""}`.trim(),
     style: {
       fontFamily: "Inter, sans-serif",
       fontSize: 12,
@@ -304,7 +372,7 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
       fill: item.color
     }
   });
-  meta.position.set(18, CARD_IMAGE_HEIGHT + 48);
+  meta.position.set(18, imageHeight + 48);
   container.addChild(meta);
 
   const title = new Text({
@@ -315,11 +383,11 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
       fontWeight: "600",
       fill: 0xfff8fb,
       wordWrap: true,
-      wordWrapWidth: CARD_WIDTH - 36,
+      wordWrapWidth: width - 36,
       breakWords: true
     }
   });
-  title.position.set(18, CARD_IMAGE_HEIGHT + 72);
+  title.position.set(18, imageHeight + 72);
   container.addChild(title);
 
   const subtitleText = new Text({
@@ -329,12 +397,12 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
       fontSize: 13,
       fill: 0xd5bfc8,
       wordWrap: true,
-      wordWrapWidth: CARD_WIDTH - 36,
+      wordWrapWidth: width - 36,
       breakWords: true
     }
   });
   subtitleText.alpha = 0.82;
-  subtitleText.position.set(18, CARD_IMAGE_HEIGHT + 124);
+  subtitleText.position.set(18, imageHeight + 124);
   container.addChild(subtitleText);
 
   container.cursor = "pointer";
@@ -343,8 +411,9 @@ function createCardNode(item: { card: ContentCard; color: number; centerX: numbe
     card: item.card,
     centerX: item.centerX,
     centerY: item.centerY,
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
+    width,
+    height,
+    imageHeight,
     container,
     frame,
     accent,

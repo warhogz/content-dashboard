@@ -36,7 +36,7 @@ export function FullscreenCardViewer({
       {open && card ? (
         <motion.div
           key={card.id}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5"
+          className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-5 sm:pb-[calc(env(safe-area-inset-bottom)+1.25rem)] sm:pt-[calc(env(safe-area-inset-top)+6.5rem)]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -52,7 +52,7 @@ export function FullscreenCardViewer({
           }}
         >
           <motion.div
-            className="relative flex max-h-[calc(100vh-1.5rem)] w-full max-w-[1600px] flex-col overflow-hidden rounded-[28px] border sm:max-h-[calc(100vh-2.5rem)] sm:rounded-[34px] lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)]"
+            className="relative flex max-h-full w-full max-w-[1440px] flex-col overflow-hidden rounded-[28px] border sm:rounded-[34px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,400px)]"
             initial={{ opacity: 0, scale: 0.965, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.985, y: 10 }}
@@ -87,10 +87,10 @@ export function FullscreenCardViewer({
                   src={card.thumbnail_url}
                   alt={card.title}
                   aspectRatio={card.aspect_ratio}
-                  heightPx={Math.min(Math.max(card.height_px, 420), 760)}
+                  heightPx={Math.min(Math.max(card.height_px, 360), 680)}
                   cropMode={card.crop_mode}
                   fetchPriority="high"
-                  className="max-h-[56vh] sm:max-h-[62vh] lg:max-h-[calc(100vh-10rem)]"
+                  className="max-h-[min(50vh,calc(100dvh-17rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] sm:max-h-[min(56vh,calc(100dvh-18rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] lg:max-h-[calc(100dvh-13rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]"
                 />
               </div>
             </motion.div>
