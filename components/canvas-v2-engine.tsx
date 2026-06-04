@@ -34,11 +34,9 @@ const CARD_WIDTH = 288;
 const CARD_HEIGHT = 392;
 const CARD_RADIUS = 28;
 const CARD_IMAGE_HEIGHT = 188;
-const SECTION_GAP_X = 460;
-const SECTION_GAP_Y = 380;
+const SECTION_GAP_X = 180;
 const CARD_GAP_X = 34;
 const CARD_GAP_Y = 38;
-const SECTION_COLUMNS = 2;
 const WORLD_PADDING = 1600;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 2.4;
@@ -112,6 +110,7 @@ function createCardTexturePlaceholder(color: number) {
 function buildLayout(sections: CanvasSection[]) {
   const cards: Array<{ card: ContentCard; color: number; centerX: number; centerY: number }> = [];
   const labels: Array<{ title: string; subtitle: string; color: number; x: number; y: number; width: number }> = [];
+  let sectionCursorX = 0;
 
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -121,11 +120,12 @@ function buildLayout(sections: CanvasSection[]) {
   for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
     const section = sections[sectionIndex];
     const color = hexToNumber(section.color);
-    const sectionColumn = sectionIndex % SECTION_COLUMNS;
-    const sectionRow = Math.floor(sectionIndex / SECTION_COLUMNS);
-    const sectionX = sectionColumn * SECTION_GAP_X;
-    const sectionY = sectionRow * SECTION_GAP_Y;
+    const sectionX = sectionCursorX;
+    const sectionY = 0;
     const columns = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(Math.max(section.cards.length, 1)))));
+    const rows = Math.max(1, Math.ceil(section.cards.length / columns));
+    const sectionWidth = columns * CARD_WIDTH + Math.max(0, columns - 1) * CARD_GAP_X;
+    const sectionHeight = 94 + rows * CARD_HEIGHT + Math.max(0, rows - 1) * CARD_GAP_Y;
 
     labels.push({
       title: section.title,
@@ -133,7 +133,7 @@ function buildLayout(sections: CanvasSection[]) {
       color,
       x: sectionX,
       y: sectionY,
-      width: columns * CARD_WIDTH + Math.max(0, columns - 1) * CARD_GAP_X
+      width: sectionWidth
     });
 
     section.cards.forEach((card, cardIndex) => {
@@ -156,6 +156,12 @@ function buildLayout(sections: CanvasSection[]) {
         centerY
       });
     });
+
+    minX = Math.min(minX, sectionX);
+    minY = Math.min(minY, sectionY);
+    maxX = Math.max(maxX, sectionX + sectionWidth);
+    maxY = Math.max(maxY, sectionY + sectionHeight);
+    sectionCursorX += sectionWidth + SECTION_GAP_X;
   }
 
   if (!cards.length) {
