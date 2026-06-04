@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { FullscreenCardViewer } from "@/components/fullscreen-card-viewer";
 import { SearchBar } from "@/components/search-bar";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
@@ -41,6 +42,7 @@ export function CanvasSpacePage({
   const [selectedCard, setSelectedCard] = useState<ContentCard | null>(null);
   const [ready, setReady] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -113,8 +115,8 @@ export function CanvasSpacePage({
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="label">Space</div>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="label hidden md:inline-flex">Space</div>
 
                 <div
                   className="inline-flex items-center gap-1 rounded-full border p-1 backdrop-blur-xl"
@@ -163,14 +165,29 @@ export function CanvasSpacePage({
                     { value: "archive", label: "Архив" }
                   ]}
                 />
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:hidden"
+                  onClick={() => setMobileFiltersOpen((current) => !current)}
+                  aria-expanded={mobileFiltersOpen}
+                  aria-controls="canvas-mobile-filters"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {mobileFiltersOpen ? "Скрыть" : "Фильтры"}
+                </Button>
               </div>
 
-              <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
+              <div className="hidden text-xs md:block" style={{ color: "var(--theme-text-muted)" }}>
                 {ready ? "Canvas готов" : `Загрузка пространства ${Math.round(progress * 100)}%`}
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.1fr_1fr_1fr_1fr_auto]">
+            <div
+              id="canvas-mobile-filters"
+              className={`${mobileFiltersOpen ? "grid" : "hidden"} gap-3 md:grid md:grid-cols-2 xl:grid-cols-[1.1fr_1fr_1fr_1fr_auto]`}
+            >
               <SearchBar value={filters.searchQuery} onChange={(value) => setFilters((current) => ({ ...current, searchQuery: value }))} />
 
               <Select value={filters.selectedStatus} onChange={(event) => setFilters((current) => ({ ...current, selectedStatus: event.target.value }))}>
@@ -209,7 +226,10 @@ export function CanvasSpacePage({
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "var(--theme-text-muted)" }}>
+            <div
+              className={`${mobileFiltersOpen ? "flex" : "hidden"} flex-wrap items-center gap-3 text-xs md:flex`}
+              style={{ color: "var(--theme-text-muted)" }}
+            >
               <span>{isArchiveMode ? `Архивных карточек: ${model.archiveProjectCards.length}` : `Карточек в пространстве: ${model.filteredCards.length}`}</span>
               <span>•</span>
               <span>{filters.projectScope === "mena" ? "Проект: Mena" : "Проект: LA"}</span>
