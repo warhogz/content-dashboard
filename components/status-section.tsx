@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentCard, StatusRow } from "@/lib/types";
 import { CardItem } from "@/components/card-item";
-import type { CardSortMode } from "@/components/public-dashboard";
+import type { CardSortMode } from "@/lib/public-cards";
 
 function cardDateValue(card: ContentCard) {
   return card.created_at ? new Date(card.created_at).getTime() : 0;

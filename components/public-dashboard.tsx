@@ -1,54 +1,33 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BoardView } from "@/components/board-view";
 import { CardItem } from "@/components/card-item";
 import { EmptyState } from "@/components/empty-state";
-import { FullscreenCardViewer } from "@/components/fullscreen-card-viewer";
 import { ImagePreload } from "@/components/image-preload";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
+import { SearchBar } from "@/components/search-bar";
 import { StatusSection } from "@/components/status-section";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
+import { getPublicCardsViewModel, type CardSortMode, type ContentMode, type ProjectScope, type PublicDashboardFilters } from "@/lib/public-cards";
 import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
-
-export type CardSortMode = "oldest" | "newest";
-
-type ProjectScope = "all" | "mena";
-type ContentMode = "live" | "archive";
-type ViewMode = "grid" | "canvas";
 
 const heroStatusSlugs = ["done", "waiting-feedback", "revisions"] as const;
 const PUBLIC_DASHBOARD_STATE_KEY = "public-dashboard-state";
 
-function cardDateValue(card: ContentCard) {
-  return card.created_at ? new Date(card.created_at).getTime() : 0;
-}
+const defaultFilters: PublicDashboardFilters = {
+  selectedStatus: "",
+  selectedType: "",
+  searchQuery: "",
+  sortMode: "oldest",
+  projectScope: "all",
+  contentMode: "live"
+};
 
-function archiveDateValue(card: ContentCard) {
-  return card.archived_at ? new Date(card.archived_at).getTime() : 0;
-}
-
-function sortLiveCards(cards: ContentCard[], sortMode: CardSortMode) {
-  return [...cards].sort((a, b) => {
-    const pinnedDiff = Number(b.is_pinned) - Number(a.is_pinned);
-    if (pinnedDiff !== 0) return pinnedDiff;
-
-    const dateDiff = sortMode === "newest" ? cardDateValue(b) - cardDateValue(a) : cardDateValue(a) - cardDateValue(b);
-    if (dateDiff !== 0) return dateDiff;
-
-    return sortMode === "newest" ? b.sort_order - a.sort_order : a.sort_order - b.sort_order;
-  });
-}
-
-function sortArchiveCards(cards: ContentCard[]) {
-  return [...cards].sort((a, b) => {
-    const archiveDiff = archiveDateValue(b) - archiveDateValue(a);
-    if (archiveDiff !== 0) return archiveDiff;
-
-    return cardDateValue(b) - cardDateValue(a) || b.sort_order - a.sort_order;
-  });
+function modeLinkClass(active: boolean) {
+  return "rounded-full px-4 py-2 text-sm font-medium transition duration-200";
 }
 
 export function PublicDashboard({
@@ -60,13 +39,7 @@ export function PublicDashboard({
   types: CardTypeRow[];
   cards: ContentCard[];
 }) {
-  const [selectedStatus, setSelectedStatus] = useState("");
-  const [selectedType, setSelectedType] = useState("");
-  const [sortMode, setSortMode] = useState<CardSortMode>("oldest");
-  const [projectScope, setProjectScope] = useState<ProjectScope>("all");
-  const [contentMode, setContentMode] = useState<ContentMode>("live");
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [selectedCard, setSelectedCard] = useState<ContentCard | null>(null);
+  const [filters, setFilters] = useState<PublicDashboardFilters>(defaultFilters);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -75,23 +48,18 @@ export function PublicDashboard({
       const raw = window.sessionStorage.getItem(PUBLIC_DASHBOARD_STATE_KEY);
       if (!raw) return;
 
-      const parsed = JSON.parse(raw) as Partial<{
-        selectedStatus: string;
-        selectedType: string;
-        sortMode: CardSortMode;
-        projectScope: ProjectScope;
-        contentMode: ContentMode;
-        viewMode: ViewMode;
-      }>;
-
-      if (parsed.selectedStatus !== undefined) setSelectedStatus(parsed.selectedStatus);
-      if (parsed.selectedType !== undefined) setSelectedType(parsed.selectedType);
-      if (parsed.sortMode === "oldest" || parsed.sortMode === "newest") setSortMode(parsed.sortMode);
-      if (parsed.projectScope === "all" || parsed.projectScope === "mena") setProjectScope(parsed.projectScope);
-      if (parsed.contentMode === "live" || parsed.contentMode === "archive") setContentMode(parsed.contentMode);
-      if (parsed.viewMode === "grid" || parsed.viewMode === "canvas") setViewMode(parsed.viewMode);
+      const parsed = JSON.parse(raw) as Partial<PublicDashboardFilters>;
+      setFilters((current) => ({
+        ...current,
+        selectedStatus: parsed.selectedStatus ?? current.selectedStatus,
+        selectedType: parsed.selectedType ?? current.selectedType,
+        searchQuery: parsed.searchQuery ?? current.searchQuery,
+        sortMode: parsed.sortMode === "newest" ? "newest" : "oldest",
+        projectScope: parsed.projectScope === "mena" ? "mena" : "all",
+        contentMode: parsed.contentMode === "archive" ? "archive" : "live"
+      }));
     } catch {
-      // Ignore invalid persisted dashboard state.
+      // Ignore invalid persisted state and keep defaults.
     }
   }, []);
 
@@ -99,41 +67,22 @@ export function PublicDashboard({
     if (typeof window === "undefined") return;
 
     try {
-      window.sessionStorage.setItem(
-        PUBLIC_DASHBOARD_STATE_KEY,
-        JSON.stringify({
-          selectedStatus,
-          selectedType,
-          sortMode,
-          projectScope,
-          contentMode,
-          viewMode
-        })
-      );
+      window.sessionStorage.setItem(PUBLIC_DASHBOARD_STATE_KEY, JSON.stringify(filters));
     } catch {
       // Ignore storage quota and privacy mode failures.
     }
-  }, [contentMode, projectScope, selectedStatus, selectedType, sortMode, viewMode]);
+  }, [filters]);
 
-  const projectKey = projectScope === "mena" ? "mena" : "main";
-
-  const activeProjectCards = useMemo(() => {
-    return cards.filter((card) => !card.is_hidden && !card.is_archived && (card.project_key || "main") === projectKey);
-  }, [cards, projectKey]);
-
-  const archiveProjectCards = useMemo(() => {
-    return sortArchiveCards(cards.filter((card) => !card.is_hidden && card.is_archived && (card.project_key || "main") === projectKey));
-  }, [cards, projectKey]);
-
-  const filteredCards = useMemo(() => {
-    const scopedCards = activeProjectCards.filter((card) => {
-      if (selectedStatus && card.status_id !== selectedStatus) return false;
-      if (selectedType && card.type_id !== selectedType) return false;
-      return true;
-    });
-
-    return sortLiveCards(scopedCards, sortMode);
-  }, [activeProjectCards, selectedStatus, selectedType, sortMode]);
+  const model = useMemo(
+    () =>
+      getPublicCardsViewModel({
+        statuses,
+        types,
+        cards,
+        filters
+      }),
+    [cards, filters, statuses, types]
+  );
 
   const heroStats = useMemo(() => {
     return heroStatusSlugs.map((slug) => {
@@ -142,68 +91,27 @@ export function PublicDashboard({
         slug,
         title: status?.title ?? slug,
         color: status?.color ?? "#64748b",
-        count: status ? activeProjectCards.filter((card) => card.status_id === status.id).length : 0
+        count: status ? model.activeProjectCards.filter((card) => card.status_id === status.id).length : 0
       };
     });
-  }, [activeProjectCards, statuses]);
-
-  const visibleStatuses = useMemo(() => {
-    if (selectedStatus) {
-      return statuses.filter((status) => status.id === selectedStatus);
-    }
-
-    const ids = new Set(filteredCards.map((card) => card.status_id));
-    return statuses.filter((status) => ids.has(status.id));
-  }, [filteredCards, selectedStatus, statuses]);
-
-  const canvasSections = useMemo(() => {
-    if (contentMode === "archive") {
-      return [
-        {
-          id: "archive",
-          title: "Архив",
-          color: "#c12657",
-          subtitle: "Последние архивированные карточки сверху",
-          cards: archiveProjectCards
-        }
-      ];
-    }
-
-    return visibleStatuses.map((status) => ({
-      id: status.id,
-      title: status.title,
-      color: status.color,
-      subtitle: `${filteredCards.filter((card) => card.status_id === status.id).length} карточек`,
-      cards: sortLiveCards(
-        filteredCards.filter((card) => card.status_id === status.id),
-        sortMode
-      )
-    }));
-  }, [archiveProjectCards, contentMode, filteredCards, sortMode, visibleStatuses]);
+  }, [model.activeProjectCards, statuses]);
 
   const preloadUrls = useMemo(() => {
-    const orderedCards =
-      contentMode === "archive"
-        ? archiveProjectCards
-        : visibleStatuses.flatMap((status) =>
-            sortLiveCards(
-              filteredCards.filter((card) => card.status_id === status.id),
-              sortMode
-            )
-          );
+    const sourceCards = filters.contentMode === "archive" ? model.archiveProjectCards : model.filteredCards;
 
-    return orderedCards
+    return sourceCards
       .map((card) => resolveCardPreviewUrl(card.thumbnail_url))
       .filter((url): url is string => Boolean(url));
-  }, [archiveProjectCards, contentMode, filteredCards, sortMode, visibleStatuses]);
+  }, [filters.contentMode, model.archiveProjectCards, model.filteredCards]);
 
-  const hasLiveFilters = selectedStatus || selectedType || sortMode !== "oldest" || projectScope !== "all";
-  const isArchiveMode = contentMode === "archive";
-  const hasCards = isArchiveMode ? archiveProjectCards.length > 0 : filteredCards.length > 0;
+  const isArchiveMode = filters.contentMode === "archive";
+  const hasCards = isArchiveMode ? model.archiveProjectCards.length > 0 : model.filteredCards.length > 0;
+  const hasLiveFilters =
+    filters.selectedStatus || filters.selectedType || filters.searchQuery || filters.sortMode !== "oldest" || filters.projectScope !== "all";
 
   return (
     <div className="space-y-8">
-      <ImagePreload urls={preloadUrls} concurrency={viewMode === "canvas" ? 4 : 8} priorityCount={viewMode === "canvas" ? 6 : 12} />
+      <ImagePreload urls={preloadUrls} concurrency={8} priorityCount={12} />
 
       <section
         className="overflow-hidden rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6 lg:p-8"
@@ -215,15 +123,15 @@ export function PublicDashboard({
       >
         <div className="flex flex-col items-center gap-6 text-center">
           <div className="max-w-2xl">
-            <div className="label">{isArchiveMode ? "Архив" : projectScope === "mena" ? "Mena" : "Лента контента"}</div>
+            <div className="label">{isArchiveMode ? "Архив" : filters.projectScope === "mena" ? "Mena" : "Лента контента"}</div>
           </div>
 
           {isArchiveMode ? (
             <div className="grid w-full gap-3 sm:grid-cols-3">
               {[
-                { label: "В архиве", value: archiveProjectCards.length, color: "#c12657" },
-                { label: "Режим", value: viewMode === "canvas" ? "Canvas" : "Grid", color: "#f59e0b" },
-                { label: "Проект", value: projectScope === "mena" ? "Mena" : "LA", color: "#8b5cf6" }
+                { label: "В архиве", value: model.archiveProjectCards.length, color: "#c12657" },
+                { label: "Режим", value: "Grid / Canvas", color: "#f59e0b" },
+                { label: "Проект", value: filters.projectScope === "mena" ? "Mena" : "LA", color: "#8b5cf6" }
               ].map((item) => (
                 <div
                   key={item.label}
@@ -285,30 +193,52 @@ export function PublicDashboard({
         <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-3">
             <div className="label">Навигация</div>
-            <ProjectSegmentedToggle
-              value={projectScope}
-              onChange={setProjectScope}
+            <ProjectSegmentedToggle<ProjectScope>
+              value={filters.projectScope}
+              onChange={(value) => setFilters((current) => ({ ...current, projectScope: value }))}
               options={[
                 { value: "all", label: "LA" },
                 { value: "mena", label: "Mena" }
               ]}
             />
-            <ProjectSegmentedToggle
-              value={contentMode}
-              onChange={setContentMode}
+            <ProjectSegmentedToggle<ContentMode>
+              value={filters.contentMode}
+              onChange={(value) => setFilters((current) => ({ ...current, contentMode: value }))}
               options={[
                 { value: "live", label: "Лента" },
                 { value: "archive", label: "Архив" }
               ]}
             />
-            <ProjectSegmentedToggle
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { value: "grid", label: "Grid" },
-                { value: "canvas", label: "Canvas" }
-              ]}
-            />
+
+            <div
+              className="inline-flex items-center gap-1 rounded-full border p-1 backdrop-blur-xl"
+              style={{
+                borderColor: "var(--theme-border)",
+                background: "var(--theme-surface-soft)",
+                boxShadow: "var(--theme-shadow-lift)"
+              }}
+            >
+              <span
+                className={modeLinkClass(true)}
+                style={{
+                  color: "var(--theme-text)",
+                  background: "var(--theme-surface-strong)",
+                  boxShadow: "0 0 0 1px var(--theme-border) inset, 0 10px 28px color-mix(in srgb, var(--theme-accent) 16%, transparent)"
+                }}
+              >
+                Grid
+              </span>
+              <Link
+                href="/canvas"
+                className={modeLinkClass(false)}
+                style={{
+                  color: "var(--theme-text-muted)",
+                  background: "transparent"
+                }}
+              >
+                Canvas
+              </Link>
+            </div>
           </div>
 
           {!isArchiveMode && hasLiveFilters ? (
@@ -319,8 +249,10 @@ export function PublicDashboard({
         </div>
 
         {!isArchiveMode ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
-            <Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.1fr_1fr_1fr_1fr_auto]">
+            <SearchBar value={filters.searchQuery} onChange={(value) => setFilters((current) => ({ ...current, searchQuery: value }))} />
+
+            <Select value={filters.selectedStatus} onChange={(event) => setFilters((current) => ({ ...current, selectedStatus: event.target.value }))}>
               <option value="">Все статусы</option>
               {statuses.map((status) => (
                 <option key={status.id} value={status.id}>
@@ -329,7 +261,7 @@ export function PublicDashboard({
               ))}
             </Select>
 
-            <Select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
+            <Select value={filters.selectedType} onChange={(event) => setFilters((current) => ({ ...current, selectedType: event.target.value }))}>
               <option value="">Все типы</option>
               {types.map((type) => (
                 <option key={type.id} value={type.id}>
@@ -338,41 +270,24 @@ export function PublicDashboard({
               ))}
             </Select>
 
-            <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as CardSortMode)}>
+            <Select value={filters.sortMode} onChange={(event) => setFilters((current) => ({ ...current, sortMode: event.target.value as CardSortMode }))}>
               <option value="oldest">Сначала старые</option>
               <option value="newest">Сначала новые</option>
             </Select>
 
-            <Button
-              className="md:col-span-2 xl:col-span-1"
-              variant="outline"
-              onClick={() => {
-                setSelectedStatus("");
-                setSelectedType("");
-                setSortMode("oldest");
-                setProjectScope("all");
-              }}
-            >
+            <Button variant="outline" onClick={() => setFilters(defaultFilters)}>
               Сбросить
             </Button>
           </div>
         ) : (
           <div className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-            Архив — отдельный режим. Здесь не применяются обычные статусные фильтры и сортировка, но Canvas использует ту же карточную выборку.
+            Архив — отдельный режим. Здесь не применяются обычные статусные фильтры и сортировка. Для пространственного режима открой Canvas-страницу.
           </div>
         )}
       </div>
 
       {hasCards ? (
-        viewMode === "canvas" ? (
-          <div className="relative left-1/2 w-screen -translate-x-1/2">
-            <BoardView
-              sections={canvasSections}
-              onOpenCard={setSelectedCard}
-              storageKey={`public-canvas:${projectScope}:${contentMode}:${selectedStatus || "all"}:${selectedType || "all"}:${sortMode}`}
-            />
-          </div>
-        ) : isArchiveMode ? (
+        isArchiveMode ? (
           <section
             className="space-y-5 rounded-[32px] border p-5 backdrop-blur-2xl sm:p-6"
             style={{
@@ -390,18 +305,44 @@ export function PublicDashboard({
                   Последние архивированные карточки всегда наверху
                 </p>
               </div>
+
+              <Link
+                href="/canvas"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border px-5 text-sm font-medium transition"
+                style={{
+                  borderColor: "var(--theme-border)",
+                  background: "var(--theme-surface)",
+                  color: "var(--theme-text)"
+                }}
+              >
+                Открыть в пространстве
+              </Link>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {archiveProjectCards.map((item, index) => (
+              {model.archiveProjectCards.map((item, index) => (
                 <CardItem key={item.id} item={item} compact imagePriority={index < 3 ? "high" : "auto"} />
               ))}
             </div>
           </section>
         ) : (
           <div className="grid gap-8">
-            {visibleStatuses.map((status) => (
-              <StatusSection key={status.id} status={status} cards={filteredCards} sortMode={sortMode} />
+            <div className="flex justify-end">
+              <Link
+                href="/canvas"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border px-5 text-sm font-medium transition"
+                style={{
+                  borderColor: "var(--theme-border)",
+                  background: "var(--theme-surface)",
+                  color: "var(--theme-text)"
+                }}
+              >
+                Открыть в пространстве
+              </Link>
+            </div>
+
+            {model.visibleStatuses.map((status) => (
+              <StatusSection key={status.id} status={status} cards={model.filteredCards} sortMode={filters.sortMode} />
             ))}
           </div>
         )
@@ -409,24 +350,22 @@ export function PublicDashboard({
         <EmptyState
           title={
             isArchiveMode
-              ? projectScope === "mena"
+              ? filters.projectScope === "mena"
                 ? "В архиве Mena пока пусто"
                 : "Архив пока пуст"
-              : projectScope === "mena"
+              : filters.projectScope === "mena"
                 ? "Пока нет карточек для Mena"
                 : "Ничего не найдено"
           }
           description={
             isArchiveMode
               ? "Архивированные карточки появятся здесь автоматически."
-              : projectScope === "mena"
+              : filters.projectScope === "mena"
                 ? "Добавь карточки проекта Mena в админке."
-                : "Попробуй другой статус или тип карточки."
+                : "Попробуй другой статус, тип или поисковый запрос."
           }
         />
       )}
-
-      <FullscreenCardViewer card={selectedCard} open={Boolean(selectedCard)} onClose={() => setSelectedCard(null)} />
     </div>
   );
 }
