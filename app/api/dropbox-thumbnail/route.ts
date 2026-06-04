@@ -11,14 +11,19 @@ export async function GET(request: NextRequest) {
 
   const thumbnail = await fetchDropboxThumbnail(originalUrl);
   if (!thumbnail) {
-    return Response.redirect(originalUrl, 307);
+    return new Response("Unable to load Dropbox image", {
+      status: 502,
+      headers: {
+        "Cache-Control": "no-store"
+      }
+    });
   }
 
   return new Response(thumbnail.bytes, {
     status: 200,
     headers: {
       "Content-Type": thumbnail.contentType,
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"
+      "Cache-Control": thumbnail.cacheControl
     }
   });
 }
