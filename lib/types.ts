@@ -2,6 +2,7 @@ export type CardCropMode = "cover" | "contain" | "crop";
 export type CardAspectRatio = "9:16" | "16:9" | "1:1" | "4:5" | "custom";
 export type ProjectKey = "main" | "mena";
 export type BloggerMaterialType = "script" | "video" | "none";
+export type BloggerStatusColor = "gray" | "blue" | "green" | "yellow" | "orange" | "red" | "purple";
 
 export const ARCHIVE_STATUS_SLUG = "archive";
 
@@ -64,6 +65,7 @@ export interface BloggerRow {
   price: string | null;
   price_description: string | null;
   status: string | null;
+  status_color: BloggerStatusColor;
   notes: string | null;
   instagram_url: string | null;
   material_type: BloggerMaterialType;

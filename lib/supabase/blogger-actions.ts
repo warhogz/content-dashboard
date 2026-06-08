@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
-import { type BloggerMaterialType, type BloggerRow } from "@/lib/types";
+import { type BloggerMaterialType, type BloggerRow, type BloggerStatusColor } from "@/lib/types";
 
 type ActionResult = { ok: true; message: string } | { ok: false; message: string };
 
@@ -69,6 +69,14 @@ function parseMaterialType(formData: FormData): BloggerMaterialType {
   return "none";
 }
 
+function parseStatusColor(formData: FormData): BloggerStatusColor {
+  const value = String(formData.get("status_color") || "gray").trim();
+  if (value === "blue" || value === "green" || value === "yellow" || value === "orange" || value === "red" || value === "purple") {
+    return value;
+  }
+  return "gray";
+}
+
 async function refreshBloggers() {
   revalidatePath("/bloggers");
   revalidatePath("/admin/bloggers");
@@ -78,11 +86,7 @@ async function loadExistingBlogger(
   supabase: NonNullable<Awaited<ReturnType<typeof getService>>>,
   id: string
 ) {
-  const { data, error } = await supabase
-    .from("bloggers")
-    .select("avatar_url")
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await supabase.from("bloggers").select("avatar_url").eq("id", id).maybeSingle();
 
   if (error) {
     console.error("Failed to load existing blogger before update", error);
@@ -94,7 +98,7 @@ async function loadExistingBlogger(
 
 export async function upsertBloggerAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase РЅРµ РЅР°СЃС‚СЂРѕРµРЅ");
+  if (!supabase) return fail("Supabase не настроен");
 
   const id = String(formData.get("id") || "");
   const materialType = parseMaterialType(formData);
@@ -107,6 +111,7 @@ export async function upsertBloggerAction(formData: FormData): Promise<ActionRes
     price: parseOptionalText(formData, "price"),
     price_description: parseOptionalText(formData, "price_description"),
     status: parseOptionalText(formData, "status"),
+    status_color: parseStatusColor(formData),
     notes: parseOptionalText(formData, "notes"),
     instagram_url: parseOptionalText(formData, "instagram_url"),
     material_type: materialType,
@@ -114,7 +119,7 @@ export async function upsertBloggerAction(formData: FormData): Promise<ActionRes
   };
 
   if (!payload.display_name) {
-    return fail("РЈРєР°Р¶Рё РёРјСЏ Р±Р»РѕРіРµСЂР°");
+    return fail("Укажи имя блогера");
   }
 
   if (id) {
@@ -134,15 +139,15 @@ export async function upsertBloggerAction(formData: FormData): Promise<ActionRes
   }
 
   await refreshBloggers();
-  return ok("Р‘Р»РѕРіРµСЂ СЃРѕС…СЂР°РЅРµРЅ");
+  return ok("Блогер сохранен");
 }
 
 export async function deleteBloggerAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase РЅРµ РЅР°СЃС‚СЂРѕРµРЅ");
+  if (!supabase) return fail("Supabase не настроен");
 
   const id = String(formData.get("id") || "");
-  if (!id) return fail("РќРµ РЅР°Р№РґРµРЅ ID");
+  if (!id) return fail("Не найден ID");
 
   const existing = await loadExistingBlogger(supabase, id);
   const { error } = await supabase.from("bloggers").delete().eq("id", id);
@@ -154,5 +159,5 @@ export async function deleteBloggerAction(formData: FormData): Promise<ActionRes
   });
 
   await refreshBloggers();
-  return ok("Р‘Р»РѕРіРµСЂ СѓРґР°Р»РµРЅ");
+  return ok("Блогер удален");
 }

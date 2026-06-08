@@ -7,6 +7,7 @@ create table if not exists public.bloggers (
   price text,
   price_description text,
   status text,
+  status_color text not null default 'gray' check (status_color in ('gray', 'blue', 'green', 'yellow', 'orange', 'red', 'purple')),
   notes text,
   instagram_url text,
   material_type text not null default 'none' check (material_type in ('script', 'video', 'none')),
@@ -16,21 +17,54 @@ create table if not exists public.bloggers (
 );
 
 alter table public.bloggers
+  add column if not exists status_color text;
+
+update public.bloggers
+set status_color = 'gray'
+where status_color is null or status_color not in ('gray', 'blue', 'green', 'yellow', 'orange', 'red', 'purple');
+
+alter table public.bloggers
+  alter column status_color set default 'gray';
+
+alter table public.bloggers
+  alter column status_color set not null;
+
+alter table public.bloggers
+  drop constraint if exists bloggers_status_color_check;
+
+alter table public.bloggers
+  add constraint bloggers_status_color_check
+  check (status_color in ('gray', 'blue', 'green', 'yellow', 'orange', 'red', 'purple'));
+
+alter table public.bloggers
   add column if not exists material_type text;
 
 alter table public.bloggers
   add column if not exists material_url text;
 
-update public.bloggers
-set
-  material_type = case
-    when coalesce(script_url, '') <> '' then 'script'
-    else coalesce(material_type, 'none')
-  end,
-  material_url = case
-    when material_url is null and coalesce(script_url, '') <> '' then script_url
-    else material_url
-  end;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'bloggers'
+      and column_name = 'script_url'
+  ) then
+    execute $migrate$
+      update public.bloggers
+      set
+        material_type = case
+          when coalesce(script_url, '') <> '' then 'script'
+          else coalesce(material_type, 'none')
+        end,
+        material_url = case
+          when material_url is null and coalesce(script_url, '') <> '' then script_url
+          else material_url
+        end
+    $migrate$;
+  end if;
+end $$;
 
 alter table public.bloggers
   alter column material_type set default 'none';

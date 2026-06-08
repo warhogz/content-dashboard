@@ -57,6 +57,7 @@ create table if not exists bloggers (
   price text,
   price_description text,
   status text,
+  status_color text not null default 'gray' check (status_color in ('gray', 'blue', 'green', 'yellow', 'orange', 'red', 'purple')),
   notes text,
   instagram_url text,
   material_type text not null default 'none' check (material_type in ('script', 'video', 'none')),

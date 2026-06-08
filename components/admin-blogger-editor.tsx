@@ -12,7 +12,17 @@ import { useToast } from "@/components/ui/toast";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { upsertBloggerAction } from "@/lib/supabase/blogger-actions";
-import { BloggerMaterialType, BloggerRow } from "@/lib/types";
+import { BloggerMaterialType, BloggerRow, BloggerStatusColor } from "@/lib/types";
+
+const statusColorOptions: Array<{ value: BloggerStatusColor; label: string }> = [
+  { value: "gray", label: "Gray" },
+  { value: "blue", label: "Blue" },
+  { value: "green", label: "Green" },
+  { value: "yellow", label: "Yellow" },
+  { value: "orange", label: "Orange" },
+  { value: "red", label: "Red" },
+  { value: "purple", label: "Purple" }
+];
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -56,6 +66,7 @@ export function AdminBloggerEditor({
   const [price, setPrice] = useState(blogger?.price || "");
   const [priceDescription, setPriceDescription] = useState(blogger?.price_description || "");
   const [status, setStatus] = useState(blogger?.status || "");
+  const [statusColor, setStatusColor] = useState<BloggerStatusColor>(blogger?.status_color || "gray");
   const [notes, setNotes] = useState(blogger?.notes || "");
   const [instagramUrl, setInstagramUrl] = useState(blogger?.instagram_url || "");
   const [materialType, setMaterialType] = useState<BloggerMaterialType>(blogger?.material_type || "none");
@@ -69,6 +80,7 @@ export function AdminBloggerEditor({
     setPrice(blogger?.price || "");
     setPriceDescription(blogger?.price_description || "");
     setStatus(blogger?.status || "");
+    setStatusColor(blogger?.status_color || "gray");
     setNotes(blogger?.notes || "");
     setInstagramUrl(blogger?.instagram_url || "");
     setMaterialType(blogger?.material_type || "none");
@@ -84,6 +96,7 @@ export function AdminBloggerEditor({
     price: price || null,
     price_description: priceDescription || null,
     status: status || null,
+    status_color: statusColor,
     notes: notes || null,
     instagram_url: instagramUrl || null,
     material_type: materialType,
@@ -123,6 +136,7 @@ export function AdminBloggerEditor({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     formData.set("avatar_url", avatarUrl);
+    formData.set("status_color", statusColor);
     formData.set("material_type", materialType);
     formData.set("material_url", materialType === "none" ? "" : materialUrl);
 
@@ -150,6 +164,7 @@ export function AdminBloggerEditor({
       <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_0.92fr]">
         <input type="hidden" name="id" defaultValue={blogger?.id || ""} />
         <input type="hidden" name="avatar_url" value={avatarUrl} />
+        <input type="hidden" name="status_color" value={statusColor} />
         <input type="hidden" name="material_type" value={materialType} />
         <input type="hidden" name="material_url" value={materialType === "none" ? "" : materialUrl} />
 
@@ -158,7 +173,7 @@ export function AdminBloggerEditor({
             <CardContent className="space-y-4 p-5">
               <div>
                 <CardTitle>Профиль блогера</CardTitle>
-                <CardDescription className="mt-1">Имя, username, ссылки и всё, что видно на карточке сразу.</CardDescription>
+                <CardDescription className="mt-1">Имя, username, статус и ссылки, которые видны на карточке сразу.</CardDescription>
               </div>
 
               <div className="grid gap-3">
@@ -166,6 +181,12 @@ export function AdminBloggerEditor({
                 <Input name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="@username" />
                 <Input name="followers" value={followers} onChange={(event) => setFollowers(event.target.value)} placeholder="165000" />
                 <Input name="status" value={status} onChange={(event) => setStatus(event.target.value)} placeholder="Ждёт ответа / Переговоры / Готов к работе" />
+
+                <div className="space-y-2">
+                  <div className="label">Цвет статуса</div>
+                  <ProjectSegmentedToggle value={statusColor} onChange={setStatusColor} options={statusColorOptions} />
+                </div>
+
                 <Input name="instagram_url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Instagram URL" />
 
                 <div className="space-y-2">
@@ -211,7 +232,7 @@ export function AdminBloggerEditor({
             <CardContent className="space-y-4 p-5">
               <div>
                 <CardTitle>Аватар</CardTitle>
-                <CardDescription className="mt-1">Оставили только аватар — карточка стала компактнее и чище.</CardDescription>
+                <CardDescription className="mt-1">Оставили только аватар, чтобы карточка была компактнее и чище.</CardDescription>
               </div>
 
               <div className="grid gap-4">

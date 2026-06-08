@@ -130,7 +130,7 @@ export function PublicDashboard({
             <div className="grid w-full gap-3 sm:grid-cols-3">
               {[
                 { label: "В архиве", value: model.archiveProjectCards.length, color: "#c12657" },
-                { label: "Режим", value: "Grid / Canvas", color: "#f59e0b" },
+                { label: "Режим", value: "Grid", color: "#f59e0b" },
                 { label: "Проект", value: filters.projectScope === "mena" ? "Mena" : "LA", color: "#8b5cf6" }
               ].map((item) => (
                 <div
@@ -229,16 +229,6 @@ export function PublicDashboard({
                 Grid
               </span>
               <Link
-                href="/canvas"
-                className={modeLinkClass(false)}
-                style={{
-                  color: "var(--theme-text-muted)",
-                  background: "transparent"
-                }}
-              >
-                Canvas
-              </Link>
-              <Link
                 href="/bloggers"
                 className={modeLinkClass(false)}
                 style={{
@@ -291,7 +281,7 @@ export function PublicDashboard({
           </div>
         ) : (
           <div className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-            Архив — отдельный режим. Здесь не применяются обычные статусные фильтры и сортировка. Для пространственного режима открой Canvas-страницу.
+            Архив — отдельный режим. Здесь не применяются обычные статусные фильтры и сортировка.
           </div>
         )}
       </div>
@@ -315,18 +305,6 @@ export function PublicDashboard({
                   Последние архивированные карточки всегда наверху
                 </p>
               </div>
-
-              <Link
-                href="/canvas"
-                className="inline-flex h-11 items-center justify-center rounded-2xl border px-5 text-sm font-medium transition"
-                style={{
-                  borderColor: "var(--theme-border)",
-                  background: "var(--theme-surface)",
-                  color: "var(--theme-text)"
-                }}
-              >
-                Открыть в пространстве
-              </Link>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -337,20 +315,6 @@ export function PublicDashboard({
           </section>
         ) : (
           <div className="grid gap-8">
-            <div className="flex justify-end">
-              <Link
-                href="/canvas"
-                className="inline-flex h-11 items-center justify-center rounded-2xl border px-5 text-sm font-medium transition"
-                style={{
-                  borderColor: "var(--theme-border)",
-                  background: "var(--theme-surface)",
-                  color: "var(--theme-text)"
-                }}
-              >
-                Открыть в пространстве
-              </Link>
-            </div>
-
             {model.visibleStatuses.map((status) => (
               <StatusSection key={status.id} status={status} cards={model.filteredCards} sortMode={filters.sortMode} />
             ))}

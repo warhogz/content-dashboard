@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { BloggerRow } from "@/lib/types";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 
-const statusPalette = ["#22c55e", "#f59e0b", "#3b82f6", "#ec4899", "#a855f7", "#14b8a6", "#ef4444"];
+const statusColorMap = {
+  gray: "#94a3b8",
+  blue: "#3b82f6",
+  green: "#22c55e",
+  yellow: "#eab308",
+  orange: "#f97316",
+  red: "#ef4444",
+  purple: "#a855f7"
+} as const;
 
 function formatFollowers(value: number | null) {
   if (!value) return "No followers";
@@ -18,18 +26,6 @@ function formatFollowers(value: number | null) {
     return `${formatted.replace(".0", "")}K followers`;
   }
   return `${value} followers`;
-}
-
-function getStatusColor(status: string | null) {
-  if (!status) return "#64748b";
-
-  let hash = 0;
-  for (let index = 0; index < status.length; index += 1) {
-    hash = (hash << 5) - hash + status.charCodeAt(index);
-    hash |= 0;
-  }
-
-  return statusPalette[Math.abs(hash) % statusPalette.length];
 }
 
 function BloggerActionButton({
@@ -53,7 +49,7 @@ function BloggerActionButton({
 
 export function BloggerCard({ blogger }: { blogger: BloggerRow }) {
   const avatarUrl = resolveCardPreviewUrl(blogger.avatar_url);
-  const statusColor = getStatusColor(blogger.status);
+  const statusColor = statusColorMap[blogger.status_color] || statusColorMap.gray;
   const materialLabel = blogger.material_type === "script" ? "Script" : blogger.material_type === "video" ? "Video" : null;
   const materialIcon = blogger.material_type === "video" ? PlayCircle : FileText;
   const actions = [

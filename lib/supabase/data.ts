@@ -1,6 +1,6 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getMockData } from "@/lib/mock-data";
-import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, BloggerStatusColor, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 
@@ -86,6 +86,16 @@ function normalizeBloggers(bloggers: BloggerRow[] | null | undefined) {
     price: blogger.price?.trim() || null,
     price_description: blogger.price_description?.trim() || null,
     status: blogger.status?.trim() || null,
+    status_color: (
+      blogger.status_color === "blue" ||
+      blogger.status_color === "green" ||
+      blogger.status_color === "yellow" ||
+      blogger.status_color === "orange" ||
+      blogger.status_color === "red" ||
+      blogger.status_color === "purple"
+        ? blogger.status_color
+        : "gray"
+    ) as BloggerStatusColor,
     notes: blogger.notes?.trim() || null,
     instagram_url: blogger.instagram_url?.trim() || null,
     material_type: (blogger.material_type === "script" || blogger.material_type === "video" ? blogger.material_type : "none") as BloggerMaterialType,

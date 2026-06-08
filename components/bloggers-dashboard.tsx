@@ -47,14 +47,6 @@ export function BloggersDashboard({ bloggers }: { bloggers: BloggerRow[] }) {
       >
         <div className="flex flex-col items-center gap-6 text-center">
           <div className="label">Bloggers</div>
-          <div className="max-w-2xl">
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl" style={{ color: "var(--theme-text)" }}>
-              Блогеры и инфлюенсеры в одном CRM-пространстве
-            </h1>
-            <p className="mt-3 text-sm leading-7 sm:text-base" style={{ color: "var(--theme-text-muted)" }}>
-              Отдельный рабочий слой для переговоров, статусов и ставок без смешивания с контент-карточками.
-            </p>
-          </div>
 
           <div className="grid w-full gap-3 sm:grid-cols-3">
             {[
@@ -108,9 +100,6 @@ export function BloggersDashboard({ bloggers }: { bloggers: BloggerRow[] }) {
               <Link href="/" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
                 Grid
               </Link>
-              <Link href="/canvas" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
-                Canvas
-              </Link>
               <span
                 className={modeLinkClass(true)}
                 style={{
@@ -122,10 +111,6 @@ export function BloggersDashboard({ bloggers }: { bloggers: BloggerRow[] }) {
                 Bloggers
               </span>
             </div>
-          </div>
-
-          <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-            Карточка блогера раскрытия не требует — всё важное видно сразу
           </div>
         </div>
 
