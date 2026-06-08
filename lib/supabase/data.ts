@@ -1,6 +1,6 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getMockData } from "@/lib/mock-data";
-import { ARCHIVE_STATUS_SLUG, BloggerRow, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 
@@ -82,14 +82,14 @@ function normalizeBloggers(bloggers: BloggerRow[] | null | undefined) {
     username: blogger.username?.trim() || null,
     display_name: blogger.display_name?.trim() || "Unnamed blogger",
     avatar_url: blogger.avatar_url || null,
-    profile_screenshot_url: blogger.profile_screenshot_url || null,
     followers: typeof blogger.followers === "number" ? blogger.followers : blogger.followers ? Number(blogger.followers) : null,
     price: blogger.price?.trim() || null,
     price_description: blogger.price_description?.trim() || null,
     status: blogger.status?.trim() || null,
     notes: blogger.notes?.trim() || null,
     instagram_url: blogger.instagram_url?.trim() || null,
-    script_url: blogger.script_url?.trim() || null
+    material_type: (blogger.material_type === "script" || blogger.material_type === "video" ? blogger.material_type : "none") as BloggerMaterialType,
+    material_url: blogger.material_url?.trim() || null
   }));
 }
 

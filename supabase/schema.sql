@@ -53,14 +53,14 @@ create table if not exists bloggers (
   username text,
   display_name text not null,
   avatar_url text,
-  profile_screenshot_url text,
   followers bigint,
   price text,
   price_description text,
   status text,
   notes text,
   instagram_url text,
-  script_url text,
+  material_type text not null default 'none' check (material_type in ('script', 'video', 'none')),
+  material_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

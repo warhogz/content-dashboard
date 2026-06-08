@@ -60,7 +60,7 @@ export function BloggersDashboard({ bloggers }: { bloggers: BloggerRow[] }) {
             {[
               { label: "Всего блогеров", value: bloggers.length, color: "#d946ef" },
               { label: "Со статусом", value: bloggers.filter((item) => item.status).length, color: "#f59e0b" },
-              { label: "Со скриптом", value: bloggers.filter((item) => item.script_url).length, color: "#22c55e" }
+              { label: "С материалом", value: bloggers.filter((item) => item.material_type !== "none" && item.material_url).length, color: "#22c55e" }
             ].map((item) => (
               <div
                 key={item.label}

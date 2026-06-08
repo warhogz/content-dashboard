@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
-import { type BloggerRow } from "@/lib/types";
+import { type BloggerMaterialType, type BloggerRow } from "@/lib/types";
 
 type ActionResult = { ok: true; message: string } | { ok: false; message: string };
 
@@ -63,6 +63,12 @@ function parseOptionalFollowers(formData: FormData) {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
+function parseMaterialType(formData: FormData): BloggerMaterialType {
+  const value = String(formData.get("material_type") || "none").trim();
+  if (value === "script" || value === "video") return value;
+  return "none";
+}
+
 async function refreshBloggers() {
   revalidatePath("/bloggers");
   revalidatePath("/admin/bloggers");
@@ -74,7 +80,7 @@ async function loadExistingBlogger(
 ) {
   const { data, error } = await supabase
     .from("bloggers")
-    .select("avatar_url, profile_screenshot_url")
+    .select("avatar_url")
     .eq("id", id)
     .maybeSingle();
 
@@ -83,30 +89,32 @@ async function loadExistingBlogger(
     return null;
   }
 
-  return data as Pick<BloggerRow, "avatar_url" | "profile_screenshot_url"> | null;
+  return data as Pick<BloggerRow, "avatar_url"> | null;
 }
 
 export async function upsertBloggerAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase РЅРµ РЅР°СЃС‚СЂРѕРµРЅ");
 
   const id = String(formData.get("id") || "");
+  const materialType = parseMaterialType(formData);
+
   const payload = {
     username: parseOptionalText(formData, "username"),
     display_name: String(formData.get("display_name") || "").trim(),
     avatar_url: parseOptionalText(formData, "avatar_url"),
-    profile_screenshot_url: parseOptionalText(formData, "profile_screenshot_url"),
     followers: parseOptionalFollowers(formData),
     price: parseOptionalText(formData, "price"),
     price_description: parseOptionalText(formData, "price_description"),
     status: parseOptionalText(formData, "status"),
     notes: parseOptionalText(formData, "notes"),
     instagram_url: parseOptionalText(formData, "instagram_url"),
-    script_url: parseOptionalText(formData, "script_url")
+    material_type: materialType,
+    material_url: materialType === "none" ? null : parseOptionalText(formData, "material_url")
   };
 
   if (!payload.display_name) {
-    return fail("Укажи имя блогера");
+    return fail("РЈРєР°Р¶Рё РёРјСЏ Р±Р»РѕРіРµСЂР°");
   }
 
   if (id) {
@@ -120,28 +128,21 @@ export async function upsertBloggerAction(formData: FormData): Promise<ActionRes
         reason: "blogger-avatar-replaced"
       });
     }
-
-    if (existing?.profile_screenshot_url && existing.profile_screenshot_url !== payload.profile_screenshot_url) {
-      await removeThumbnailFromStorage(supabase, existing.profile_screenshot_url, {
-        bloggerId: id,
-        reason: "blogger-profile-replaced"
-      });
-    }
   } else {
     const { error } = await supabase.from("bloggers").insert(payload);
     if (error) return fail(error.message);
   }
 
   await refreshBloggers();
-  return ok("Блогер сохранен");
+  return ok("Р‘Р»РѕРіРµСЂ СЃРѕС…СЂР°РЅРµРЅ");
 }
 
 export async function deleteBloggerAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase РЅРµ РЅР°СЃС‚СЂРѕРµРЅ");
 
   const id = String(formData.get("id") || "");
-  if (!id) return fail("Не найден ID");
+  if (!id) return fail("РќРµ РЅР°Р№РґРµРЅ ID");
 
   const existing = await loadExistingBlogger(supabase, id);
   const { error } = await supabase.from("bloggers").delete().eq("id", id);
@@ -151,11 +152,7 @@ export async function deleteBloggerAction(formData: FormData): Promise<ActionRes
     bloggerId: id,
     reason: "blogger-deleted-avatar"
   });
-  await removeThumbnailFromStorage(supabase, existing?.profile_screenshot_url, {
-    bloggerId: id,
-    reason: "blogger-deleted-profile"
-  });
 
   await refreshBloggers();
-  return ok("Блогер удален");
+  return ok("Р‘Р»РѕРіРµСЂ СѓРґР°Р»РµРЅ");
 }

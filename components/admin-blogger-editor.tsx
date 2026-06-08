@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition, type FormEvent } from "react";
 import { BloggerCard } from "@/components/blogger-card";
+import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { upsertBloggerAction } from "@/lib/supabase/blogger-actions";
-import { BloggerRow } from "@/lib/types";
+import { BloggerMaterialType, BloggerRow } from "@/lib/types";
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -34,8 +35,6 @@ function extensionFromMimeType(type: string) {
   }
 }
 
-type UploadKind = "avatar" | "profile";
-
 export function AdminBloggerEditor({
   open,
   onOpenChange,
@@ -51,7 +50,6 @@ export function AdminBloggerEditor({
   const [pending, startTransition] = useTransition();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [avatarUrl, setAvatarUrl] = useState(blogger?.avatar_url || "");
-  const [profileScreenshotUrl, setProfileScreenshotUrl] = useState(blogger?.profile_screenshot_url || "");
   const [displayName, setDisplayName] = useState(blogger?.display_name || "");
   const [username, setUsername] = useState(blogger?.username || "");
   const [followers, setFollowers] = useState(blogger?.followers ? String(blogger.followers) : "");
@@ -60,11 +58,11 @@ export function AdminBloggerEditor({
   const [status, setStatus] = useState(blogger?.status || "");
   const [notes, setNotes] = useState(blogger?.notes || "");
   const [instagramUrl, setInstagramUrl] = useState(blogger?.instagram_url || "");
-  const [scriptUrl, setScriptUrl] = useState(blogger?.script_url || "");
+  const [materialType, setMaterialType] = useState<BloggerMaterialType>(blogger?.material_type || "none");
+  const [materialUrl, setMaterialUrl] = useState(blogger?.material_url || "");
 
   useEffect(() => {
     setAvatarUrl(blogger?.avatar_url || "");
-    setProfileScreenshotUrl(blogger?.profile_screenshot_url || "");
     setDisplayName(blogger?.display_name || "");
     setUsername(blogger?.username || "");
     setFollowers(blogger?.followers ? String(blogger.followers) : "");
@@ -73,7 +71,8 @@ export function AdminBloggerEditor({
     setStatus(blogger?.status || "");
     setNotes(blogger?.notes || "");
     setInstagramUrl(blogger?.instagram_url || "");
-    setScriptUrl(blogger?.script_url || "");
+    setMaterialType(blogger?.material_type || "none");
+    setMaterialUrl(blogger?.material_url || "");
   }, [blogger, open]);
 
   const previewBlogger: BloggerRow = {
@@ -81,17 +80,17 @@ export function AdminBloggerEditor({
     display_name: displayName || "Имя блогера",
     username: username || null,
     avatar_url: avatarUrl || null,
-    profile_screenshot_url: profileScreenshotUrl || null,
     followers: followers ? Number(followers.replace(/[^\d]/g, "")) || null : null,
     price: price || null,
     price_description: priceDescription || null,
     status: status || null,
     notes: notes || null,
     instagram_url: instagramUrl || null,
-    script_url: scriptUrl || null
+    material_type: materialType,
+    material_url: materialType === "none" ? null : materialUrl || null
   };
 
-  const uploadImage = async (file: File, kind: UploadKind) => {
+  const uploadImage = async (file: File) => {
     if (!supabase) {
       toast.push({ title: "Supabase не настроен", description: "Пока можно использовать прямую ссылку на изображение." });
       return;
@@ -100,7 +99,7 @@ export function AdminBloggerEditor({
     const optimized = await optimizeImageForUpload(file, { maxDimension: 1600, quality: 0.82 });
     const uploadFile = optimized.file;
     const ext = extensionFromMimeType(uploadFile.type);
-    const path = `bloggers/${kind}/${crypto.randomUUID()}.${ext}`;
+    const path = `bloggers/avatar/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from("thumbnails").upload(path, uploadFile, {
       upsert: true,
       contentType: uploadFile.type
@@ -112,11 +111,7 @@ export function AdminBloggerEditor({
     }
 
     const { data } = supabase.storage.from("thumbnails").getPublicUrl(path);
-    if (kind === "avatar") {
-      setAvatarUrl(data.publicUrl);
-    } else {
-      setProfileScreenshotUrl(data.publicUrl);
-    }
+    setAvatarUrl(data.publicUrl);
 
     toast.push({
       title: optimized.changed ? "Изображение оптимизировано и загружено" : "Изображение загружено",
@@ -128,7 +123,8 @@ export function AdminBloggerEditor({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     formData.set("avatar_url", avatarUrl);
-    formData.set("profile_screenshot_url", profileScreenshotUrl);
+    formData.set("material_type", materialType);
+    formData.set("material_url", materialType === "none" ? "" : materialUrl);
 
     startTransition(async () => {
       const result = await upsertBloggerAction(formData);
@@ -154,7 +150,8 @@ export function AdminBloggerEditor({
       <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_0.92fr]">
         <input type="hidden" name="id" defaultValue={blogger?.id || ""} />
         <input type="hidden" name="avatar_url" value={avatarUrl} />
-        <input type="hidden" name="profile_screenshot_url" value={profileScreenshotUrl} />
+        <input type="hidden" name="material_type" value={materialType} />
+        <input type="hidden" name="material_url" value={materialType === "none" ? "" : materialUrl} />
 
         <div className="space-y-4">
           <Card>
@@ -170,7 +167,27 @@ export function AdminBloggerEditor({
                 <Input name="followers" value={followers} onChange={(event) => setFollowers(event.target.value)} placeholder="165000" />
                 <Input name="status" value={status} onChange={(event) => setStatus(event.target.value)} placeholder="Ждёт ответа / Переговоры / Готов к работе" />
                 <Input name="instagram_url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Instagram URL" />
-                <Input name="script_url" value={scriptUrl} onChange={(event) => setScriptUrl(event.target.value)} placeholder="Script URL" />
+
+                <div className="space-y-2">
+                  <div className="label">Тип материала</div>
+                  <ProjectSegmentedToggle
+                    value={materialType}
+                    onChange={setMaterialType}
+                    options={[
+                      { value: "script", label: "Script" },
+                      { value: "video", label: "Video" },
+                      { value: "none", label: "Нет" }
+                    ]}
+                  />
+                </div>
+
+                <Input
+                  name="material_url"
+                  value={materialUrl}
+                  onChange={(event) => setMaterialUrl(event.target.value)}
+                  placeholder={materialType === "video" ? "Video URL" : "Script URL"}
+                  disabled={materialType === "none"}
+                />
               </div>
             </CardContent>
           </Card>
@@ -193,8 +210,8 @@ export function AdminBloggerEditor({
           <Card>
             <CardContent className="space-y-4 p-5">
               <div>
-                <CardTitle>Изображения</CardTitle>
-                <CardDescription className="mt-1">Аватар и скриншот профиля загружаются отдельно и показываются прямо на карточке.</CardDescription>
+                <CardTitle>Аватар</CardTitle>
+                <CardDescription className="mt-1">Оставили только аватар — карточка стала компактнее и чище.</CardDescription>
               </div>
 
               <div className="grid gap-4">
@@ -204,16 +221,7 @@ export function AdminBloggerEditor({
                   style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
                 >
                   Загрузить аватар
-                  <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0], "avatar")} />
-                </label>
-
-                <Input value={profileScreenshotUrl} onChange={(event) => setProfileScreenshotUrl(event.target.value)} placeholder="Profile screenshot URL" />
-                <label
-                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]"
-                  style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
-                >
-                  Загрузить скриншот профиля
-                  <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0], "profile")} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0])} />
                 </label>
               </div>
             </CardContent>

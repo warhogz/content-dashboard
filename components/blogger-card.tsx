@@ -1,19 +1,11 @@
 "use client";
 
-import { Instagram, FileText, Users } from "lucide-react";
+import { FileText, Instagram, PlayCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BloggerRow } from "@/lib/types";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 
-const statusPalette = [
-  "#22c55e",
-  "#f59e0b",
-  "#3b82f6",
-  "#ec4899",
-  "#a855f7",
-  "#14b8a6",
-  "#ef4444"
-];
+const statusPalette = ["#22c55e", "#f59e0b", "#3b82f6", "#ec4899", "#a855f7", "#14b8a6", "#ef4444"];
 
 function formatFollowers(value: number | null) {
   if (!value) return "No followers";
@@ -21,12 +13,10 @@ function formatFollowers(value: number | null) {
     const formatted = value >= 10_000_000 ? (value / 1_000_000).toFixed(0) : (value / 1_000_000).toFixed(1);
     return `${formatted.replace(".0", "")}M followers`;
   }
-
   if (value >= 1_000) {
     const formatted = value >= 100_000 ? (value / 1_000).toFixed(0) : (value / 1_000).toFixed(1);
     return `${formatted.replace(".0", "")}K followers`;
   }
-
   return `${value} followers`;
 }
 
@@ -47,19 +37,10 @@ function BloggerActionButton({
   label,
   icon: Icon
 }: {
-  href: string | null;
+  href: string;
   label: string;
   icon: typeof Instagram;
 }) {
-  if (!href) {
-    return (
-      <Button variant="outline" className="h-12 w-full justify-center opacity-55" disabled>
-        <Icon className="h-4 w-4" />
-        {label}
-      </Button>
-    );
-  }
-
   return (
     <a href={href} target="_blank" rel="noreferrer" className="w-full">
       <Button variant="outline" className="h-12 w-full justify-center">
@@ -72,39 +53,23 @@ function BloggerActionButton({
 
 export function BloggerCard({ blogger }: { blogger: BloggerRow }) {
   const avatarUrl = resolveCardPreviewUrl(blogger.avatar_url);
-  const coverUrl = resolveCardPreviewUrl(blogger.profile_screenshot_url);
   const statusColor = getStatusColor(blogger.status);
+  const materialLabel = blogger.material_type === "script" ? "Script" : blogger.material_type === "video" ? "Video" : null;
+  const materialIcon = blogger.material_type === "video" ? PlayCircle : FileText;
+  const actions = [
+    blogger.instagram_url ? { key: "instagram", href: blogger.instagram_url, label: "Instagram", icon: Instagram } : null,
+    materialLabel && blogger.material_url ? { key: "material", href: blogger.material_url, label: materialLabel, icon: materialIcon } : null
+  ].filter((action): action is { key: string; href: string; label: string; icon: typeof Instagram } => Boolean(action));
 
   return (
     <article
-      className="flex h-full flex-col overflow-hidden rounded-[30px] border backdrop-blur-2xl"
+      className="flex h-full flex-col rounded-[30px] border backdrop-blur-2xl"
       style={{
         borderColor: "var(--theme-border)",
-        background: "linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 94%, transparent), color-mix(in srgb, var(--theme-surface-soft) 92%, transparent))",
+        background: "linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 96%, transparent), color-mix(in srgb, var(--theme-surface-soft) 90%, transparent))",
         boxShadow: "var(--theme-shadow)"
       }}
     >
-      <div
-        className="relative aspect-[16/10] overflow-hidden border-b"
-        style={{ borderColor: "color-mix(in srgb, var(--theme-border) 82%, transparent)", background: "var(--theme-image-bg)" }}
-      >
-        {coverUrl ? (
-          <img src={coverUrl} alt={blogger.display_name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-        ) : (
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(circle at 20% 20%, rgba(255, 164, 201, 0.16), transparent 30%), radial-gradient(circle at 80% 12%, rgba(214, 88, 140, 0.18), transparent 26%), linear-gradient(180deg, rgba(50, 14, 29, 0.72), rgba(18, 8, 15, 0.96))"
-            }}
-          />
-        )}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-          style={{ background: "linear-gradient(180deg, transparent, rgba(11, 5, 10, 0.94))" }}
-        />
-      </div>
-
       <div className="flex flex-1 flex-col gap-5 p-5">
         <div className="flex items-start gap-4">
           <div
@@ -131,7 +96,10 @@ export function BloggerCard({ blogger }: { blogger: BloggerRow }) {
             <div className="mt-1 truncate text-sm" style={{ color: "var(--theme-text-muted)" }}>
               {blogger.username ? `@${blogger.username.replace(/^@/, "")}` : "No username"}
             </div>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--theme-border)", color: "var(--theme-text-muted)", background: "var(--theme-surface-soft)" }}>
+            <div
+              className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium"
+              style={{ borderColor: "var(--theme-border)", color: "var(--theme-text-muted)", background: "var(--theme-surface-soft)" }}
+            >
               <Users className="h-3.5 w-3.5" />
               {formatFollowers(blogger.followers)}
             </div>
@@ -183,9 +151,14 @@ export function BloggerCard({ blogger }: { blogger: BloggerRow }) {
           </div>
         )}
 
-        <div className="mt-auto grid grid-cols-2 gap-3">
-          <BloggerActionButton href={blogger.instagram_url} label="Instagram" icon={Instagram} />
-          <BloggerActionButton href={blogger.script_url} label="Script" icon={FileText} />
+        <div className={`mt-auto grid gap-3 ${actions.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {actions.length ? (
+            actions.map((action) => <BloggerActionButton key={action.key} href={action.href} label={action.label} icon={action.icon} />)
+          ) : (
+            <Button variant="outline" className="h-12 w-full justify-center opacity-55" disabled>
+              Нет ссылок
+            </Button>
+          )}
         </div>
       </div>
     </article>

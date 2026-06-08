@@ -1,6 +1,7 @@
 export type CardCropMode = "cover" | "contain" | "crop";
 export type CardAspectRatio = "9:16" | "16:9" | "1:1" | "4:5" | "custom";
 export type ProjectKey = "main" | "mena";
+export type BloggerMaterialType = "script" | "video" | "none";
 
 export const ARCHIVE_STATUS_SLUG = "archive";
 
@@ -59,14 +60,14 @@ export interface BloggerRow {
   username: string | null;
   display_name: string;
   avatar_url: string | null;
-  profile_screenshot_url: string | null;
   followers: number | null;
   price: string | null;
   price_description: string | null;
   status: string | null;
   notes: string | null;
   instagram_url: string | null;
-  script_url: string | null;
+  material_type: BloggerMaterialType;
+  material_url: string | null;
   created_at?: string;
   updated_at?: string;
 }
