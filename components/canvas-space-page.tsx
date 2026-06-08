@@ -146,6 +146,16 @@ export function CanvasSpacePage({
                   >
                     Canvas
                   </span>
+                  <Link
+                    href="/bloggers"
+                    className={modeLinkClass(false)}
+                    style={{
+                      color: "var(--theme-text-muted)",
+                      background: "transparent"
+                    }}
+                  >
+                    Bloggers
+                  </Link>
                 </div>
 
                 <ProjectSegmentedToggle<ProjectScope>

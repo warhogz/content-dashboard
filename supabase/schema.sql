@@ -48,6 +48,23 @@ create table if not exists cards (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists bloggers (
+  id uuid primary key default gen_random_uuid(),
+  username text,
+  display_name text not null,
+  avatar_url text,
+  profile_screenshot_url text,
+  followers bigint,
+  price text,
+  price_description text,
+  status text,
+  notes text,
+  instagram_url text,
+  script_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists ui_preferences (
   id uuid primary key default gen_random_uuid(),
   key text not null unique,
@@ -60,6 +77,8 @@ create index if not exists idx_cards_status_sort on cards (status_id, is_pinned 
 create index if not exists idx_cards_project_status_sort on cards (project_key, status_id, is_pinned desc, sort_order asc);
 create index if not exists idx_cards_hidden on cards (is_hidden);
 create index if not exists idx_cards_archive_sort on cards (project_key, is_archived, archived_at desc);
+create index if not exists idx_bloggers_created_at on bloggers (created_at desc);
+create index if not exists idx_bloggers_status on bloggers (status);
 create index if not exists idx_statuses_sort on statuses (sort_order asc);
 create index if not exists idx_types_sort on card_types (sort_order asc);
 
@@ -87,9 +106,14 @@ drop trigger if exists trg_ui_preferences_updated_at on ui_preferences;
 create trigger trg_ui_preferences_updated_at before update on ui_preferences
 for each row execute function set_updated_at();
 
+drop trigger if exists trg_bloggers_updated_at on bloggers;
+create trigger trg_bloggers_updated_at before update on bloggers
+for each row execute function set_updated_at();
+
 alter table statuses enable row level security;
 alter table card_types enable row level security;
 alter table cards enable row level security;
+alter table bloggers enable row level security;
 alter table ui_preferences enable row level security;
 
 drop policy if exists "public read statuses" on statuses;
@@ -109,6 +133,12 @@ create policy "public read cards" on cards for select using (is_hidden = false);
 
 drop policy if exists "authenticated write cards" on cards;
 create policy "authenticated write cards" on cards for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+drop policy if exists "public read bloggers" on bloggers;
+create policy "public read bloggers" on bloggers for select using (true);
+
+drop policy if exists "authenticated write bloggers" on bloggers;
+create policy "authenticated write bloggers" on bloggers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 drop policy if exists "authenticated read ui_preferences" on ui_preferences;
 create policy "authenticated read ui_preferences" on ui_preferences for select using (auth.role() = 'authenticated');

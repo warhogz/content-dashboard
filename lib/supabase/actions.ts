@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
-import { ARCHIVE_STATUS_SLUG, type CardAspectRatio, type CardCropMode, type ProjectKey } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, type BloggerRow, type CardAspectRatio, type CardCropMode, type ProjectKey } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 
 type ActionResult = { ok: true; message: string } | { ok: false; message: string };
@@ -68,7 +68,9 @@ async function nextSortOrder(table: "cards" | "statuses" | "card_types", filters
 
 async function refreshAll() {
   revalidatePath("/");
+  revalidatePath("/bloggers");
   revalidatePath("/admin");
+  revalidatePath("/admin/bloggers");
   revalidatePath("/settings");
 }
 

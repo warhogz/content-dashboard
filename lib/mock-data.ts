@@ -1,4 +1,4 @@
-import { CardTypeRow, ContentCard, DEFAULT_STATUS_SEED, DEFAULT_TYPE_SEED, StatusRow } from "@/lib/types";
+import { BloggerRow, CardTypeRow, ContentCard, DEFAULT_STATUS_SEED, DEFAULT_TYPE_SEED, StatusRow } from "@/lib/types";
 
 const statuses: StatusRow[] = DEFAULT_STATUS_SEED.map((status, index) => ({
   ...status,
@@ -82,7 +82,8 @@ const cards: ContentCard[] = rawCards.map((card) => ({
 export const mockDashboard = {
   statuses,
   types,
-  cards
+  cards,
+  bloggers: [] as BloggerRow[]
 };
 
 export function getMockData() {

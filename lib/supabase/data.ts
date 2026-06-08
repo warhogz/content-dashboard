@@ -1,6 +1,6 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getMockData } from "@/lib/mock-data";
-import { ARCHIVE_STATUS_SLUG, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, BloggerRow, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 
@@ -72,6 +72,25 @@ function normalizeCards(cards: ContentCard[] | null | undefined) {
 function normalizeStatuses(statuses: StatusRow[] | null | undefined) {
   if (!statuses) return null;
   return statuses.filter((status) => status.slug !== ARCHIVE_STATUS_SLUG);
+}
+
+function normalizeBloggers(bloggers: BloggerRow[] | null | undefined) {
+  if (!bloggers) return null;
+
+  return bloggers.map((blogger) => ({
+    ...blogger,
+    username: blogger.username?.trim() || null,
+    display_name: blogger.display_name?.trim() || "Unnamed blogger",
+    avatar_url: blogger.avatar_url || null,
+    profile_screenshot_url: blogger.profile_screenshot_url || null,
+    followers: typeof blogger.followers === "number" ? blogger.followers : blogger.followers ? Number(blogger.followers) : null,
+    price: blogger.price?.trim() || null,
+    price_description: blogger.price_description?.trim() || null,
+    status: blogger.status?.trim() || null,
+    notes: blogger.notes?.trim() || null,
+    instagram_url: blogger.instagram_url?.trim() || null,
+    script_url: blogger.script_url?.trim() || null
+  }));
 }
 
 export async function getDashboardData() {
@@ -167,5 +186,47 @@ export async function getAdminData() {
     statuses: normalizeStatuses(statuses) ?? fallback.statuses,
     types: types ?? fallback.types,
     cards: normalizeCards(cards) ?? fallback.cards
+  };
+}
+
+export async function getBloggersData() {
+  if (!hasSupabase()) return { bloggers: getMockData().bloggers ?? [] };
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { bloggers: getMockData().bloggers ?? [] };
+
+  const bloggers = await safeQuery<BloggerRow[]>(
+    async (signal) =>
+      await supabase
+        .from("bloggers")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .abortSignal(signal),
+    "bloggers"
+  );
+
+  return {
+    bloggers: normalizeBloggers(bloggers) ?? getMockData().bloggers ?? []
+  };
+}
+
+export async function getAdminBloggersData() {
+  if (!hasSupabase()) return { bloggers: getMockData().bloggers ?? [] };
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { bloggers: getMockData().bloggers ?? [] };
+
+  const bloggers = await safeQuery<BloggerRow[]>(
+    async (signal) =>
+      await supabase
+        .from("bloggers")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .abortSignal(signal),
+    "admin-bloggers"
+  );
+
+  return {
+    bloggers: normalizeBloggers(bloggers) ?? getMockData().bloggers ?? []
   };
 }

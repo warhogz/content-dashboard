@@ -54,6 +54,23 @@ export interface ContentCard {
   type?: CardTypeRow;
 }
 
+export interface BloggerRow {
+  id: string;
+  username: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  profile_screenshot_url: string | null;
+  followers: number | null;
+  price: string | null;
+  price_description: string | null;
+  status: string | null;
+  notes: string | null;
+  instagram_url: string | null;
+  script_url: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export const STATUS_PRIORITY: Record<string, number> = {
   done: 1,
   "waiting-feedback": 2,

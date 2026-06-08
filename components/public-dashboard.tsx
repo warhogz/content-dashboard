@@ -238,6 +238,16 @@ export function PublicDashboard({
               >
                 Canvas
               </Link>
+              <Link
+                href="/bloggers"
+                className={modeLinkClass(false)}
+                style={{
+                  color: "var(--theme-text-muted)",
+                  background: "transparent"
+                }}
+              >
+                Bloggers
+              </Link>
             </div>
           </div>
 

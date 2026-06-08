@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminCardEditor } from "@/components/admin-card-editor";
@@ -149,6 +150,24 @@ export function AdminWorkspace({
           <div className="min-w-0">
             <div className="label">Workspace</div>
             <CardTitle className="mt-2 text-2xl sm:text-3xl">Content Cards</CardTitle>
+            <div
+              className="mt-4 inline-flex items-center gap-1 rounded-full border p-1 backdrop-blur-xl"
+              style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", boxShadow: "var(--theme-shadow-lift)" }}
+            >
+              <span
+                className="rounded-full px-4 py-2 text-sm font-medium"
+                style={{
+                  color: "var(--theme-text)",
+                  background: "var(--theme-surface-strong)",
+                  boxShadow: "0 0 0 1px var(--theme-border) inset, 0 10px 28px color-mix(in srgb, var(--theme-accent) 16%, transparent)"
+                }}
+              >
+                Content
+              </span>
+              <Link href="/admin/bloggers" className="rounded-full px-4 py-2 text-sm font-medium transition" style={{ color: "var(--theme-text-muted)" }}>
+                Bloggers
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:min-w-[320px]">
