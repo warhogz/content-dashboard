@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select } from "@/components/ui/select";
 import { SearchBar } from "@/components/search-bar";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
@@ -171,6 +172,7 @@ export function AdminPlanWorkspace({
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedWeek, setSelectedWeek] = useState<PlannedWeek>("week_1");
   const [search, setSearch] = useState("");
+  const [readyOnly, setReadyOnly] = useState(false);
   const [projectFilter, setProjectFilter] = useState("");
   const [roomFilter, setRoomFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -237,12 +239,13 @@ export function AdminPlanWorkspace({
       .filter((card) => {
         const haystack = `${card.title} ${card.subtitle || ""}`.toLowerCase();
         const matchesSearch = query ? haystack.includes(query) : true;
+        const matchesReady = readyOnly ? Boolean(card.ready_for_plan) : true;
         const matchesProject = projectFilter ? (card.project_name || "") === projectFilter : true;
         const matchesRoom = roomFilter ? (card.room_zone || "") === roomFilter : true;
         const matchesCategory = categoryFilter ? (card.content_category || "") === categoryFilter : true;
         const matchesType = typeFilter ? card.type_id === typeFilter : true;
         const matchesStatus = statusFilter ? card.status_id === statusFilter : true;
-        return matchesSearch && matchesProject && matchesRoom && matchesCategory && matchesType && matchesStatus;
+        return matchesSearch && matchesReady && matchesProject && matchesRoom && matchesCategory && matchesType && matchesStatus;
       })
       .sort((a, b) => {
         const aUsed = usedCardIds.has(a.id);
@@ -250,7 +253,7 @@ export function AdminPlanWorkspace({
         if (aUsed !== bUsed) return Number(aUsed) - Number(bUsed);
         return (a.created_at || "") < (b.created_at || "") ? 1 : -1;
       });
-  }, [categoryFilter, initialData.cards, projectFilter, projectKey, roomFilter, search, statusFilter, typeFilter, usedCardIds]);
+  }, [categoryFilter, initialData.cards, projectFilter, projectKey, readyOnly, roomFilter, search, statusFilter, typeFilter, usedCardIds]);
 
   const assignCard = (cardId: string) => {
     startTransition(async () => {
@@ -424,8 +427,20 @@ export function AdminPlanWorkspace({
             <div>
               <CardTitle>Content Library</CardTitle>
               <CardDescription className="mt-1">
-                Search and filter the ready-to-plan content pool, then tap a card to place it into the active slot.
+                Search and filter the full non-archived content library, then tap a card to place it into the active slot.
               </CardDescription>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label
+                className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm"
+                style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
+              >
+                <Checkbox checked={readyOnly} onChange={(event) => setReadyOnly(event.target.checked)} /> Ready for plan only
+              </label>
+              <div className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
+                {filteredCards.length} cards
+              </div>
             </div>
 
             <SearchBar value={search} onChange={setSearch} placeholder="Search by title or subtitle" />
@@ -480,6 +495,7 @@ export function AdminPlanWorkspace({
                 variant="outline"
                 onClick={() => {
                   setSearch("");
+                  setReadyOnly(false);
                   setProjectFilter("");
                   setRoomFilter("");
                   setCategoryFilter("");

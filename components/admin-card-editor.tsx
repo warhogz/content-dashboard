@@ -12,37 +12,22 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { ImagePreview } from "@/components/image-preview";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { getCardPlanningEditorDataAction, upsertCardAction, type CardPlanningEditorData } from "@/lib/supabase/card-actions";
+import { upsertCardAction } from "@/lib/supabase/card-actions";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
-import { getPlannedMonthOptions, PLAN_CATEGORY_PRESETS, PLAN_DAY_OPTIONS, PLAN_PROJECT_PRESETS, PLAN_ROOM_PRESETS, PLAN_WEEK_OPTIONS } from "@/lib/plan/config";
-import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, PlannedDay, PlannedWeek, ProjectKey, StatusRow } from "@/lib/types";
+import { PLAN_CATEGORY_PRESETS, PLAN_PROJECT_PRESETS, PLAN_ROOM_PRESETS } from "@/lib/plan/config";
+import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const aspectPresets: CardAspectRatio[] = ["9:16", "16:9", "1:1", "4:5", "custom"];
 const cropPresets: CardCropMode[] = ["cover", "contain", "crop"];
-const planningOtherValue = "__other";
+const metadataOtherValue = "__other";
 const toggleLabelClass =
   "flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
 const uploadLabelClass =
   "inline-flex cursor-pointer items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
 
-type PlanningState = CardPlanningEditorData["planning"];
-type PlanningAlternative = CardPlanningEditorData["alternatives"][number];
 type PresetFieldState = {
   preset: string;
   custom: string;
-};
-
-const emptyPlanningState: PlanningState = {
-  project_name: null,
-  room_zone: null,
-  content_category: null,
-  ready_for_plan: false,
-  planned_month: null,
-  planned_week: null,
-  planned_day: null,
-  is_main_pick: false,
-  alternative_for: null,
-  plan_priority: null
 };
 
 function clampHeight(value: number) {
@@ -75,12 +60,12 @@ function createPresetFieldState(value: string | null | undefined, presets: reado
   if (presets.includes(value)) {
     return { preset: value, custom: "" };
   }
-  return { preset: planningOtherValue, custom: value };
+  return { preset: metadataOtherValue, custom: value };
 }
 
 function resolvePresetFieldValue(field: PresetFieldState) {
   if (!field.preset) return "";
-  if (field.preset === planningOtherValue) return field.custom.trim();
+  if (field.preset === metadataOtherValue) return field.custom.trim();
   return field.preset;
 }
 
@@ -108,9 +93,9 @@ function PresetField({
               {option}
             </option>
           ))}
-          <option value={planningOtherValue}>Other</option>
+          <option value={metadataOtherValue}>Other</option>
         </Select>
-        {value.preset === planningOtherValue ? (
+        {value.preset === metadataOtherValue ? (
           <Input value={value.custom} onChange={(event) => onChange({ preset: value.preset, custom: event.target.value })} placeholder={otherPlaceholder} />
         ) : (
           <div
@@ -145,77 +130,29 @@ export function AdminCardEditor({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [thumbnailUrl, setThumbnailUrl] = useState(card?.thumbnail_url || "");
   const [projectKey, setProjectKey] = useState<ProjectKey>(card?.project_key || "main");
+  const [readyForPlan, setReadyForPlan] = useState(Boolean(card?.ready_for_plan));
   const [preview, setPreview] = useState({
     aspect_ratio: card?.aspect_ratio || "custom",
     height_px: card?.height_px || 320,
     crop_mode: card?.crop_mode || "cover"
   });
-  const [planningExpanded, setPlanningExpanded] = useState(false);
-  const [planningLoading, setPlanningLoading] = useState(false);
-  const [planningLoadedKey, setPlanningLoadedKey] = useState<string | null>(null);
-  const [planningData, setPlanningData] = useState<PlanningState>(emptyPlanningState);
-  const [planningAlternatives, setPlanningAlternatives] = useState<PlanningAlternative[]>([]);
-  const [projectField, setProjectField] = useState<PresetFieldState>(() => createPresetFieldState(null, PLAN_PROJECT_PRESETS));
-  const [roomField, setRoomField] = useState<PresetFieldState>(() => createPresetFieldState(null, PLAN_ROOM_PRESETS));
-  const [categoryField, setCategoryField] = useState<PresetFieldState>(() => createPresetFieldState(null, PLAN_CATEGORY_PRESETS));
-
-  const planningCardKey = card?.id ?? "__new__";
-  const plannedMonthOptions = useMemo(() => getPlannedMonthOptions(), []);
+  const [projectField, setProjectField] = useState<PresetFieldState>(() => createPresetFieldState(card?.project_name || null, PLAN_PROJECT_PRESETS));
+  const [roomField, setRoomField] = useState<PresetFieldState>(() => createPresetFieldState(card?.room_zone || null, PLAN_ROOM_PRESETS));
+  const [categoryField, setCategoryField] = useState<PresetFieldState>(() => createPresetFieldState(card?.content_category || null, PLAN_CATEGORY_PRESETS));
 
   useEffect(() => {
     setThumbnailUrl(card?.thumbnail_url || "");
     setProjectKey(card?.project_key || "main");
+    setReadyForPlan(Boolean(card?.ready_for_plan));
     setPreview({
       aspect_ratio: card?.aspect_ratio || "custom",
       height_px: card?.height_px || 320,
       crop_mode: card?.crop_mode || "cover"
     });
-    setPlanningExpanded(false);
-    setPlanningLoading(false);
-    setPlanningLoadedKey(null);
-    setPlanningData(emptyPlanningState);
-    setPlanningAlternatives([]);
-    setProjectField(createPresetFieldState(null, PLAN_PROJECT_PRESETS));
-    setRoomField(createPresetFieldState(null, PLAN_ROOM_PRESETS));
-    setCategoryField(createPresetFieldState(null, PLAN_CATEGORY_PRESETS));
+    setProjectField(createPresetFieldState(card?.project_name || null, PLAN_PROJECT_PRESETS));
+    setRoomField(createPresetFieldState(card?.room_zone || null, PLAN_ROOM_PRESETS));
+    setCategoryField(createPresetFieldState(card?.content_category || null, PLAN_CATEGORY_PRESETS));
   }, [card, open]);
-
-  useEffect(() => {
-    if (!open || !planningExpanded || planningLoadedKey === planningCardKey) return;
-
-    let cancelled = false;
-    setPlanningLoading(true);
-
-    void getCardPlanningEditorDataAction(card?.id ?? null)
-      .then((result) => {
-        if (cancelled) return;
-
-        setPlanningData(result.planning);
-        setPlanningAlternatives(result.alternatives);
-        setProjectField(createPresetFieldState(result.planning.project_name, PLAN_PROJECT_PRESETS));
-        setRoomField(createPresetFieldState(result.planning.room_zone, PLAN_ROOM_PRESETS));
-        setCategoryField(createPresetFieldState(result.planning.content_category, PLAN_CATEGORY_PRESETS));
-        setPlanningLoadedKey(planningCardKey);
-      })
-      .catch((error) => {
-        console.error("Failed to load planning editor data", error);
-        if (!cancelled) {
-          toast.push({
-            title: "Failed to load planning data",
-            description: "Try reopening the Planning Data section."
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setPlanningLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [card?.id, open, planningCardKey, planningExpanded, planningLoadedKey, toast]);
 
   const typeDefaults = types.find((type) => type.id === (card?.type_id || types[0]?.id));
   const currentHeight = preview.height_px || typeDefaults?.default_height_px || 320;
@@ -230,11 +167,6 @@ export function AdminCardEditor({
   const resolvedProjectName = resolvePresetFieldValue(projectField);
   const resolvedRoomZone = resolvePresetFieldValue(roomField);
   const resolvedContentCategory = resolvePresetFieldValue(categoryField);
-  const selectedAlternativeFor = planningData.alternative_for || "";
-  const alternativeOptions = useMemo(
-    () => planningAlternatives.filter((item) => !item.alternative_for || item.id === selectedAlternativeFor),
-    [planningAlternatives, selectedAlternativeFor]
-  );
 
   const uploadImage = async (file: File) => {
     if (!supabase) {
@@ -270,6 +202,14 @@ export function AdminCardEditor({
     const formData = new FormData(event.currentTarget);
     formData.set("thumbnail_url", thumbnailUrl || card?.thumbnail_url || "");
     formData.set("project_key", projectKey);
+    formData.set("project_name", resolvedProjectName);
+    formData.set("room_zone", resolvedRoomZone);
+    formData.set("content_category", resolvedContentCategory);
+    if (readyForPlan) {
+      formData.set("ready_for_plan", "on");
+    } else {
+      formData.delete("ready_for_plan");
+    }
 
     startTransition(async () => {
       const result = await upsertCardAction(formData);
@@ -296,6 +236,9 @@ export function AdminCardEditor({
         <input type="hidden" name="id" defaultValue={card?.id || ""} />
         <input type="hidden" name="thumbnail_url" value={thumbnailUrl || card?.thumbnail_url || ""} />
         <input type="hidden" name="project_key" value={projectKey} />
+        <input type="hidden" name="project_name" value={resolvedProjectName} />
+        <input type="hidden" name="room_zone" value={resolvedRoomZone} />
+        <input type="hidden" name="content_category" value={resolvedContentCategory} />
 
         <div className="space-y-4">
           <Card>
@@ -401,204 +344,41 @@ export function AdminCardEditor({
 
           <Card>
             <CardContent className="space-y-4 p-5">
-              <button
-                type="button"
-                onClick={() => setPlanningExpanded((current) => !current)}
-                className="flex w-full items-center justify-between rounded-3xl border px-4 py-4 text-left transition hover:bg-[var(--theme-surface-strong)]"
+              <div>
+                <CardTitle>Content metadata</CardTitle>
+                <CardDescription className="mt-1">Reusable metadata for the planning library. Weekly placement now lives only in the planner.</CardDescription>
+              </div>
+
+              <PresetField
+                label="Project Name"
+                value={projectField}
+                options={PLAN_PROJECT_PRESETS}
+                otherPlaceholder="Custom project name"
+                onChange={setProjectField}
+              />
+
+              <PresetField
+                label="Room / Zone"
+                value={roomField}
+                options={PLAN_ROOM_PRESETS}
+                otherPlaceholder="Custom room or zone"
+                onChange={setRoomField}
+              />
+
+              <PresetField
+                label="Content Category"
+                value={categoryField}
+                options={PLAN_CATEGORY_PRESETS}
+                otherPlaceholder="Custom content category"
+                onChange={setCategoryField}
+              />
+
+              <label
+                className={toggleLabelClass}
                 style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
               >
-                <div>
-                  <CardTitle>Planning Data (optional)</CardTitle>
-                  <CardDescription className="mt-1">
-                    Kept separate from the main editor. Open only when the card should appear in the founder plan.
-                  </CardDescription>
-                </div>
-                <span className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
-                  {planningExpanded ? "Hide" : "Show"}
-                </span>
-              </button>
-
-              {planningExpanded ? (
-                planningLoading ? (
-                  <div
-                    className="rounded-3xl border px-4 py-8 text-center text-sm"
-                    style={{ borderColor: "var(--theme-border-soft)", background: "var(--theme-surface-soft)", color: "var(--theme-text-muted)" }}
-                  >
-                    Loading planning fields...
-                  </div>
-                ) : (
-                  <div className="space-y-4 rounded-3xl border p-4 sm:p-5" style={{ borderColor: "var(--theme-border-soft)", background: "var(--theme-surface-soft)" }}>
-                    <input type="hidden" name="project_name" value={resolvedProjectName} />
-                    <input type="hidden" name="room_zone" value={resolvedRoomZone} />
-                    <input type="hidden" name="content_category" value={resolvedContentCategory} />
-
-                    <PresetField
-                      label="Project Name"
-                      value={projectField}
-                      options={PLAN_PROJECT_PRESETS}
-                      otherPlaceholder="Custom project name"
-                      onChange={setProjectField}
-                    />
-
-                    <PresetField
-                      label="Room / Zone"
-                      value={roomField}
-                      options={PLAN_ROOM_PRESETS}
-                      otherPlaceholder="Custom room or zone"
-                      onChange={setRoomField}
-                    />
-
-                    <PresetField
-                      label="Content Category"
-                      value={categoryField}
-                      options={PLAN_CATEGORY_PRESETS}
-                      otherPlaceholder="Custom content category"
-                      onChange={setCategoryField}
-                    />
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <label
-                        className={toggleLabelClass}
-                        style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-strong)", color: "var(--theme-text)" }}
-                      >
-                        <Checkbox
-                          name="ready_for_plan"
-                          checked={planningData.ready_for_plan}
-                          onChange={(event) => setPlanningData((current) => ({ ...current, ready_for_plan: event.target.checked }))}
-                        />
-                        Ready for Plan
-                      </label>
-
-                      <label
-                        className={toggleLabelClass}
-                        style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-strong)", color: "var(--theme-text)" }}
-                      >
-                        <Checkbox
-                          name="is_main_pick"
-                          checked={planningData.is_main_pick}
-                          disabled={Boolean(planningData.alternative_for)}
-                          onChange={(event) =>
-                            setPlanningData((current) => ({
-                              ...current,
-                              is_main_pick: event.target.checked
-                            }))
-                          }
-                        />
-                        Main Pick
-                      </label>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="space-y-2">
-                        <div className="label">Planned Month</div>
-                        <Select
-                          name="planned_month"
-                          value={planningData.planned_month || ""}
-                          onChange={(event) =>
-                            setPlanningData((current) => ({
-                              ...current,
-                              planned_month: event.target.value || null
-                            }))
-                          }
-                        >
-                          <option value="">Not set</option>
-                          {plannedMonthOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="label">Planned Week</div>
-                        <Select
-                          name="planned_week"
-                          value={planningData.planned_week || ""}
-                          onChange={(event) =>
-                            setPlanningData((current) => ({
-                              ...current,
-                              planned_week: (event.target.value || null) as PlannedWeek | null
-                            }))
-                          }
-                        >
-                          <option value="">Not set</option>
-                          {PLAN_WEEK_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="label">Planned Day</div>
-                        <Select
-                          name="planned_day"
-                          value={planningData.planned_day || ""}
-                          onChange={(event) =>
-                            setPlanningData((current) => ({
-                              ...current,
-                              planned_day: (event.target.value || null) as PlannedDay | null
-                            }))
-                          }
-                        >
-                          <option value="">Not set</option>
-                          {PLAN_DAY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-                      <div className="space-y-2">
-                        <div className="label">Alternative For</div>
-                        <Select
-                          name="alternative_for"
-                          value={selectedAlternativeFor}
-                          disabled={planningData.is_main_pick}
-                          onChange={(event) =>
-                            setPlanningData((current) => ({
-                              ...current,
-                              alternative_for: event.target.value || null,
-                              is_main_pick: event.target.value ? false : current.is_main_pick
-                            }))
-                          }
-                        >
-                          <option value="">Not set</option>
-                          {alternativeOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.title}
-                              {option.project_name ? ` · ${option.project_name}` : ""}
-                              {option.planned_day ? ` · ${option.planned_day}` : ""}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="label">Priority</div>
-                        <Input
-                          name="plan_priority"
-                          type="number"
-                          min={0}
-                          value={planningData.plan_priority ?? ""}
-                          onChange={(event) =>
-                            setPlanningData((current) => ({
-                              ...current,
-                              plan_priority: event.target.value ? Number(event.target.value) : null
-                            }))
-                          }
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )
-              ) : null}
+                <Checkbox name="ready_for_plan" checked={readyForPlan} onChange={(event) => setReadyForPlan(event.target.checked)} /> Ready for plan
+              </label>
             </CardContent>
           </Card>
         </div>

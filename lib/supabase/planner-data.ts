@@ -205,7 +205,6 @@ export async function getAdminPlannerData(): Promise<AdminPlannerData> {
       .from("cards")
       .select(PLANNER_CARD_SELECT)
       .eq("is_archived", false)
-      .eq("ready_for_plan", true)
       .order("created_at", { ascending: false }),
     plannedCardIds.length
       ? supabase.from("cards").select(PLANNER_CARD_SELECT).in("id", plannedCardIds)

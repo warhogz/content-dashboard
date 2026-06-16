@@ -2,33 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
-import { ARCHIVE_STATUS_SLUG, type CardAspectRatio, type CardCropMode, type ContentCard, type PlannedDay, type PlannedWeek, type ProjectKey } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, type CardAspectRatio, type CardCropMode, type ProjectKey } from "@/lib/types";
 
 type ActionResult = { ok: true; message: string } | { ok: false; message: string };
-
-export type CardPlanningEditorData = {
-  planning: {
-    project_name: string | null;
-    room_zone: string | null;
-    content_category: string | null;
-    ready_for_plan: boolean;
-    planned_month: string | null;
-    planned_week: PlannedWeek | null;
-    planned_day: PlannedDay | null;
-    is_main_pick: boolean;
-    alternative_for: string | null;
-    plan_priority: number | null;
-  };
-  alternatives: Array<{
-    id: string;
-    title: string;
-    project_name: string | null;
-    planned_month: string | null;
-    planned_week: PlannedWeek | null;
-    planned_day: PlannedDay | null;
-    alternative_for: string | null;
-  }>;
-};
 
 function fail(message: string): ActionResult {
   return { ok: false, message };
@@ -94,26 +70,13 @@ function parseOptionalTextValue(value: FormDataEntryValue | null) {
   return text || null;
 }
 
-function parseOptionalNumberValue(value: FormDataEntryValue | null) {
-  const text = String(value || "").trim();
-  if (!text) return null;
-  const number = Number(text);
-  return Number.isFinite(number) ? number : null;
-}
-
-function hasPlanningFields(formData: FormData) {
-  return [
-    "project_name",
-    "room_zone",
-    "content_category",
-    "ready_for_plan",
-    "planned_month",
-    "planned_week",
-    "planned_day",
-    "is_main_pick",
-    "alternative_for",
-    "plan_priority"
-  ].some((key) => formData.has(key));
+function getMetadataPayload(formData: FormData) {
+  return {
+    project_name: parseOptionalTextValue(formData.get("project_name")),
+    room_zone: parseOptionalTextValue(formData.get("room_zone")),
+    content_category: parseOptionalTextValue(formData.get("content_category")),
+    ready_for_plan: formData.get("ready_for_plan") === "on"
+  };
 }
 
 async function refreshAll() {
@@ -123,6 +86,7 @@ async function refreshAll() {
   revalidatePath("/canvas");
   revalidatePath("/admin");
   revalidatePath("/admin/bloggers");
+  revalidatePath("/admin/plan");
   revalidatePath("/settings");
 }
 
@@ -139,155 +103,13 @@ async function getFirstActiveStatusId(supabase: NonNullable<Awaited<ReturnType<t
   return data?.id ?? null;
 }
 
-async function validateAlternativeFor(
-  supabase: NonNullable<Awaited<ReturnType<typeof getService>>>,
-  currentId: string,
-  alternativeFor: string | null
-) {
-  if (!alternativeFor) return null;
-  if (currentId && alternativeFor === currentId) {
-    return "Card cannot be an alternative to itself";
-  }
-
-  const { data: target, error: targetError } = await supabase
-    .from("cards")
-    .select("id, alternative_for")
-    .eq("id", alternativeFor)
-    .maybeSingle();
-
-  if (targetError || !target) {
-    return targetError?.message || "Main card for alternative was not found";
-  }
-
-  if (target.alternative_for) {
-    return "You can only choose a main card that is not itself an alternative";
-  }
-
-  if (currentId) {
-    const { data: dependent } = await supabase.from("cards").select("id").eq("alternative_for", currentId).limit(1).maybeSingle();
-    if (dependent) {
-      return "A card with linked alternatives cannot itself become an alternative";
-    }
-  }
-
-  return null;
-}
-
-function getPlanningPayload(formData: FormData) {
-  if (!hasPlanningFields(formData)) return null;
-
-  return {
-    project_name: parseOptionalTextValue(formData.get("project_name")),
-    room_zone: parseOptionalTextValue(formData.get("room_zone")),
-    content_category: parseOptionalTextValue(formData.get("content_category")),
-    ready_for_plan: formData.get("ready_for_plan") === "on",
-    planned_month: parseOptionalTextValue(formData.get("planned_month")),
-    planned_week: parseOptionalTextValue(formData.get("planned_week")) as PlannedWeek | null,
-    planned_day: parseOptionalTextValue(formData.get("planned_day")) as PlannedDay | null,
-    is_main_pick: formData.get("is_main_pick") === "on",
-    alternative_for: parseOptionalTextValue(formData.get("alternative_for")),
-    plan_priority: parseOptionalNumberValue(formData.get("plan_priority"))
-  };
-}
-
-export async function getCardPlanningEditorDataAction(cardId: string | null): Promise<CardPlanningEditorData> {
-  const supabase = await getService();
-  if (!supabase) {
-    return {
-      planning: {
-        project_name: null,
-        room_zone: null,
-        content_category: null,
-        ready_for_plan: false,
-        planned_month: null,
-        planned_week: null,
-        planned_day: null,
-        is_main_pick: false,
-        alternative_for: null,
-        plan_priority: null
-      },
-      alternatives: []
-    };
-  }
-
-  const [planningCardResult, alternativeCardsResult] = await Promise.all([
-    cardId
-      ? supabase
-          .from("cards")
-          .select(
-            "project_name, room_zone, content_category, ready_for_plan, planned_month, planned_week, planned_day, is_main_pick, alternative_for, plan_priority"
-          )
-          .eq("id", cardId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    supabase
-      .from("cards")
-      .select("id, title, project_name, planned_month, planned_week, planned_day, alternative_for")
-      .eq("is_archived", false)
-      .order("created_at", { ascending: false })
-  ]);
-
-  if (planningCardResult.error) {
-    console.error("Failed to load card planning data", planningCardResult.error);
-  }
-
-  if (alternativeCardsResult.error) {
-    console.error("Failed to load planning alternative options", alternativeCardsResult.error);
-  }
-
-  const planning = planningCardResult.data
-    ? {
-        project_name: planningCardResult.data.project_name || null,
-        room_zone: planningCardResult.data.room_zone || null,
-        content_category: planningCardResult.data.content_category || null,
-        ready_for_plan: Boolean(planningCardResult.data.ready_for_plan),
-        planned_month: planningCardResult.data.planned_month || null,
-        planned_week: (planningCardResult.data.planned_week || null) as PlannedWeek | null,
-        planned_day: (planningCardResult.data.planned_day || null) as PlannedDay | null,
-        is_main_pick: Boolean(planningCardResult.data.is_main_pick),
-        alternative_for: planningCardResult.data.alternative_for || null,
-        plan_priority:
-          typeof planningCardResult.data.plan_priority === "number"
-            ? planningCardResult.data.plan_priority
-            : planningCardResult.data.plan_priority
-              ? Number(planningCardResult.data.plan_priority)
-              : null
-      }
-    : {
-        project_name: null,
-        room_zone: null,
-        content_category: null,
-        ready_for_plan: false,
-        planned_month: null,
-        planned_week: null,
-        planned_day: null,
-        is_main_pick: false,
-        alternative_for: null,
-        plan_priority: null
-      };
-
-  const alternatives = (alternativeCardsResult.data ?? [])
-    .filter((item) => item.id !== cardId)
-    .map((item) => ({
-      id: item.id,
-      title: item.title,
-      project_name: item.project_name || null,
-      planned_month: item.planned_month || null,
-      planned_week: (item.planned_week || null) as PlannedWeek | null,
-      planned_day: (item.planned_day || null) as PlannedDay | null,
-      alternative_for: item.alternative_for || null
-    }));
-
-  return { planning, alternatives };
-}
-
 export async function upsertCardAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase is not configured");
 
   const id = String(formData.get("id") || "");
   let previousThumbnailUrl: string | null = null;
-  const planningPayload = getPlanningPayload(formData);
+  const metadataPayload = getMetadataPayload(formData);
 
   const payload = {
     title: String(formData.get("title") || "").trim(),
@@ -302,7 +124,8 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
     subtitle: String(formData.get("subtitle") || "").trim() || null,
     notes: String(formData.get("notes") || "").trim() || null,
     is_hidden: formData.get("is_hidden") === "on",
-    is_pinned: formData.get("is_pinned") === "on"
+    is_pinned: formData.get("is_pinned") === "on",
+    ...metadataPayload
   };
 
   if (!payload.title || !payload.type_id || !payload.status_id || !payload.link) {
@@ -311,17 +134,6 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
 
   if (payload.project_key !== "main" && payload.project_key !== "mena") {
     return fail("Invalid project");
-  }
-
-  if (planningPayload) {
-    if (planningPayload.is_main_pick && planningPayload.alternative_for) {
-      return fail("Main pick cannot simultaneously be marked as an alternative");
-    }
-
-    const alternativeValidationMessage = await validateAlternativeFor(supabase, id, planningPayload.alternative_for);
-    if (alternativeValidationMessage) {
-      return fail(alternativeValidationMessage);
-    }
   }
 
   if (id) {
@@ -344,16 +156,12 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
     const nextPayload = shouldResetSortOrder
       ? {
           ...payload,
-          ...(planningPayload ?? {}),
           sort_order: await nextSortOrder("cards", {
             status_id: payload.status_id,
             project_key: payload.project_key
           })
         }
-      : {
-          ...payload,
-          ...(planningPayload ?? {})
-        };
+      : payload;
 
     const { error } = await supabase.from("cards").update(nextPayload).eq("id", id);
     if (error) return fail(error.message);
@@ -372,7 +180,6 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
 
     const { error } = await supabase.from("cards").insert({
       ...payload,
-      ...(planningPayload ?? {}),
       sort_order,
       is_archived: false,
       archived_at: null,
@@ -387,7 +194,7 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
 
 export async function deleteCardAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase is not configured");
 
   const id = String(formData.get("id") || "");
   if (!id) return fail("ID not found");
@@ -412,12 +219,14 @@ export async function deleteCardAction(formData: FormData): Promise<ActionResult
 
 export async function duplicateCardAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase is not configured");
 
   const id = String(formData.get("id") || "");
   const { data, error } = await supabase
     .from("cards")
-    .select("title, project_key, type_id, status_id, archived_from_status_id, link, thumbnail_url, aspect_ratio, height_px, crop_mode, is_hidden, is_pinned, subtitle, notes")
+    .select(
+      "title, project_key, type_id, status_id, archived_from_status_id, link, thumbnail_url, aspect_ratio, height_px, crop_mode, is_hidden, is_pinned, subtitle, notes, project_name, room_zone, content_category, ready_for_plan"
+    )
     .eq("id", id)
     .single();
   if (error || !data) return fail(error?.message || "Card not found");
@@ -445,10 +254,10 @@ export async function duplicateCardAction(formData: FormData): Promise<ActionRes
     is_archived: false,
     archived_at: null,
     archived_from_status_id: null,
-    project_name: null,
-    room_zone: null,
-    content_category: null,
-    ready_for_plan: false,
+    project_name: data.project_name || null,
+    room_zone: data.room_zone || null,
+    content_category: data.content_category || null,
+    ready_for_plan: Boolean(data.ready_for_plan),
     planned_month: null,
     planned_week: null,
     planned_day: null,
@@ -468,7 +277,7 @@ export async function duplicateCardAction(formData: FormData): Promise<ActionRes
 
 export async function toggleCardHiddenAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase is not configured");
 
   const id = String(formData.get("id") || "");
   const current = String(formData.get("is_hidden") || "false") === "true";
@@ -481,7 +290,7 @@ export async function toggleCardHiddenAction(formData: FormData): Promise<Action
 
 export async function toggleCardPinnedAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase is not configured");
 
   const id = String(formData.get("id") || "");
   const current = String(formData.get("is_pinned") || "false") === "true";
@@ -494,7 +303,7 @@ export async function toggleCardPinnedAction(formData: FormData): Promise<Action
 
 export async function toggleCardArchivedAction(formData: FormData): Promise<ActionResult> {
   const supabase = await getService();
-  if (!supabase) return fail("Supabase не настроен");
+  if (!supabase) return fail("Supabase is not configured");
 
   const id = String(formData.get("id") || "");
   if (!id) return fail("ID not found");
