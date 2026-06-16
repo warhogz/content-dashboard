@@ -64,7 +64,7 @@ const PLANNER_CARD_SELECT = [
   "content_category",
   "ready_for_plan",
   "created_at",
-  "status:statuses(id,title,slug,color)",
+  "status:statuses!cards_status_id_fkey(id,title,slug,color)",
   "type:card_types(id,title,slug)"
 ].join(", ");
 
