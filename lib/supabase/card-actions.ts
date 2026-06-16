@@ -65,20 +65,6 @@ async function nextSortOrder(table: "cards" | "statuses" | "card_types", filters
   return ((data?.[0]?.sort_order as number | undefined) ?? 0) + 1;
 }
 
-function parseOptionalTextValue(value: FormDataEntryValue | null) {
-  const text = String(value || "").trim();
-  return text || null;
-}
-
-function getMetadataPayload(formData: FormData) {
-  return {
-    project_name: parseOptionalTextValue(formData.get("project_name")),
-    room_zone: parseOptionalTextValue(formData.get("room_zone")),
-    content_category: parseOptionalTextValue(formData.get("content_category")),
-    ready_for_plan: formData.get("ready_for_plan") === "on"
-  };
-}
-
 async function refreshAll() {
   revalidatePath("/");
   revalidatePath("/bloggers");
@@ -109,7 +95,6 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
 
   const id = String(formData.get("id") || "");
   let previousThumbnailUrl: string | null = null;
-  const metadataPayload = getMetadataPayload(formData);
 
   const payload = {
     title: String(formData.get("title") || "").trim(),
@@ -124,8 +109,7 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
     subtitle: String(formData.get("subtitle") || "").trim() || null,
     notes: String(formData.get("notes") || "").trim() || null,
     is_hidden: formData.get("is_hidden") === "on",
-    is_pinned: formData.get("is_pinned") === "on",
-    ...metadataPayload
+    is_pinned: formData.get("is_pinned") === "on"
   };
 
   if (!payload.title || !payload.type_id || !payload.status_id || !payload.link) {

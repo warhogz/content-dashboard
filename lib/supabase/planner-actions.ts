@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { PLAN_CATEGORY_PRESETS, PLAN_PROJECT_PRESETS, PLAN_ROOM_PRESETS } from "@/lib/plan/config";
 import { monthLabelToSortDate } from "@/lib/plan/dates";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
 import { PlanEntryRole, PlannedDay, PlannedWeek, ProjectKey } from "@/lib/types";
@@ -30,6 +31,13 @@ function normalizeDayKey(value: string) {
 
 function normalizeRole(value: string) {
   return value === "main" || value === "alternative" ? (value as PlanEntryRole) : null;
+}
+
+function normalizeMetadataField(value: string, presets: readonly string[]) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (presets.includes(trimmed)) return trimmed;
+  return trimmed;
 }
 
 async function getOrCreatePlanWeek(projectKey: ProjectKey, monthLabel: string, weekKey: PlannedWeek) {
@@ -78,6 +86,30 @@ async function getOrCreatePlanWeek(projectKey: ProjectKey, monthLabel: string, w
 function refreshPlanner() {
   revalidatePath("/admin/plan");
   revalidatePath("/plan");
+}
+
+export async function updatePlannerCardMetadataAction(formData: FormData): Promise<ActionResult> {
+  const supabase = await getService();
+  if (!supabase) return fail("Supabase is not configured");
+
+  const id = String(formData.get("id") || "").trim();
+  if (!id) return fail("Card is missing");
+
+  const payload = {
+    project_name: normalizeMetadataField(String(formData.get("project_name") || ""), PLAN_PROJECT_PRESETS),
+    room_zone: normalizeMetadataField(String(formData.get("room_zone") || ""), PLAN_ROOM_PRESETS),
+    content_category: normalizeMetadataField(String(formData.get("content_category") || ""), PLAN_CATEGORY_PRESETS),
+    ready_for_plan: formData.get("ready_for_plan") === "on"
+  };
+
+  const { error } = await supabase.from("cards").update(payload).eq("id", id);
+  if (error) {
+    return fail(error.message);
+  }
+
+  refreshPlanner();
+  revalidatePath("/admin");
+  return ok("Content metadata updated");
 }
 
 export async function setPlanEntryAction(formData: FormData): Promise<ActionResult> {

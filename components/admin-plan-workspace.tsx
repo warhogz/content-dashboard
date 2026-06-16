@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SearchBar } from "@/components/search-bar";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
@@ -13,7 +15,7 @@ import { useToast } from "@/components/ui/toast";
 import { getPlannedMonthOptions, PLAN_CATEGORY_PRESETS, PLAN_PROJECT_PRESETS, PLAN_ROOM_PRESETS, PLAN_WEEK_OPTIONS } from "@/lib/plan/config";
 import { dayHeading, plannerDayOrder } from "@/lib/plan/dates";
 import { type AdminPlannerData, type PlannerLibraryCard, type PlannerResolvedEntry } from "@/lib/supabase/planner-data";
-import { clearPlanWeekAction, setPlanEntryAction } from "@/lib/supabase/planner-actions";
+import { clearPlanWeekAction, setPlanEntryAction, updatePlannerCardMetadataAction } from "@/lib/supabase/planner-actions";
 import { CardTypeRow, PlannedDay, PlannedWeek, ProjectKey, StatusRow } from "@/lib/types";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 
@@ -22,6 +24,13 @@ type SlotTarget = {
   role: "main" | "alternative";
   position: number;
 };
+
+type MetadataFieldState = {
+  preset: string;
+  custom: string;
+};
+
+const metadataOtherValue = "__other";
 
 function navPill(active: boolean) {
   return active
@@ -38,6 +47,58 @@ function navPill(active: boolean) {
 
 function compactLabel(label: string, value: string | null | undefined) {
   return value?.trim() ? `${label}: ${value.trim()}` : null;
+}
+
+function createMetadataFieldState(value: string | null | undefined, presets: readonly string[]): MetadataFieldState {
+  if (!value) return { preset: "", custom: "" };
+  if (presets.includes(value)) return { preset: value, custom: "" };
+  return { preset: metadataOtherValue, custom: value };
+}
+
+function resolveMetadataFieldValue(field: MetadataFieldState) {
+  if (!field.preset) return "";
+  return field.preset === metadataOtherValue ? field.custom.trim() : field.preset;
+}
+
+function MetadataField({
+  label,
+  value,
+  options,
+  otherPlaceholder,
+  onChange
+}: {
+  label: string;
+  value: MetadataFieldState;
+  options: readonly string[];
+  otherPlaceholder: string;
+  onChange: (value: MetadataFieldState) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="label">{label}</div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+        <Select value={value.preset} onChange={(event) => onChange({ preset: event.target.value, custom: value.custom })}>
+          <option value="">Not set</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+          <option value={metadataOtherValue}>Other</option>
+        </Select>
+        {value.preset === metadataOtherValue ? (
+          <Input value={value.custom} onChange={(event) => onChange({ preset: value.preset, custom: event.target.value })} placeholder={otherPlaceholder} />
+        ) : (
+          <div
+            className="hidden rounded-2xl border px-4 py-3 text-sm sm:flex sm:items-center"
+            style={{ borderColor: "var(--theme-border-soft)", background: "var(--theme-surface-soft)", color: "var(--theme-text-muted)" }}
+          >
+            Select Other to enter a custom value
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function LibraryPreview({ card }: { card: PlannerLibraryCard }) {
@@ -179,6 +240,11 @@ export function AdminPlanWorkspace({
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [activeTarget, setActiveTarget] = useState<SlotTarget>({ day: "monday", role: "main", position: 0 });
+  const [editingCard, setEditingCard] = useState<PlannerLibraryCard | null>(null);
+  const [projectField, setProjectField] = useState<MetadataFieldState>({ preset: "", custom: "" });
+  const [roomField, setRoomField] = useState<MetadataFieldState>({ preset: "", custom: "" });
+  const [categoryField, setCategoryField] = useState<MetadataFieldState>({ preset: "", custom: "" });
+  const [readyForPlanValue, setReadyForPlanValue] = useState(false);
 
   const monthOptions = useMemo(() => {
     const set = new Set(getPlannedMonthOptions());
@@ -193,9 +259,12 @@ export function AdminPlanWorkspace({
   const effectiveMonth = selectedMonth || monthOptions[0] || "";
 
   const projectOptions = useMemo(() => {
-    return Array.from(new Set(initialData.cards.map((card) => card.project_name?.trim()).filter((value): value is string => Boolean(value)))).sort((a, b) =>
-      a.localeCompare(b, "en")
-    );
+    const values = new Set<string>(PLAN_PROJECT_PRESETS);
+    for (const card of initialData.cards) {
+      const value = card.project_name?.trim();
+      if (value) values.add(value);
+    }
+    return Array.from(values).sort((a, b) => a.localeCompare(b, "en"));
   }, [initialData.cards]);
 
   const roomOptions = useMemo(() => {
@@ -255,6 +324,14 @@ export function AdminPlanWorkspace({
       });
   }, [categoryFilter, initialData.cards, projectFilter, projectKey, readyOnly, roomFilter, search, statusFilter, typeFilter, usedCardIds]);
 
+  const openMetadataEditor = (card: PlannerLibraryCard) => {
+    setEditingCard(card);
+    setProjectField(createMetadataFieldState(card.project_name, PLAN_PROJECT_PRESETS));
+    setRoomField(createMetadataFieldState(card.room_zone, PLAN_ROOM_PRESETS));
+    setCategoryField(createMetadataFieldState(card.content_category, PLAN_CATEGORY_PRESETS));
+    setReadyForPlanValue(Boolean(card.ready_for_plan));
+  };
+
   const assignCard = (cardId: string) => {
     startTransition(async () => {
       const formData = new FormData();
@@ -298,6 +375,29 @@ export function AdminPlanWorkspace({
       const result = await clearPlanWeekAction(formData);
       toast.push({ title: result.ok ? "Week reset" : "Planner error", description: result.message });
       if (result.ok) router.refresh();
+    });
+  };
+
+  const saveMetadata = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingCard) return;
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("id", editingCard.id);
+      formData.set("project_name", resolveMetadataFieldValue(projectField));
+      formData.set("room_zone", resolveMetadataFieldValue(roomField));
+      formData.set("content_category", resolveMetadataFieldValue(categoryField));
+      if (readyForPlanValue) {
+        formData.set("ready_for_plan", "on");
+      }
+
+      const result = await updatePlannerCardMetadataAction(formData);
+      toast.push({ title: result.ok ? "Metadata saved" : "Planner error", description: result.message });
+      if (result.ok) {
+        setEditingCard(null);
+        router.refresh();
+      }
     });
   };
 
@@ -523,12 +623,9 @@ export function AdminPlanWorkspace({
               const inWeek = usedCardIds.has(card.id);
 
               return (
-                <button
+                <div
                   key={card.id}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => assignCard(card.id)}
-                  className="rounded-[24px] border p-3 text-left transition hover:-translate-y-[1px]"
+                  className="rounded-[24px] border p-3 text-left"
                   style={{
                     borderColor: inWeek ? "color-mix(in srgb, var(--theme-accent) 48%, var(--theme-border))" : "var(--theme-border)",
                     background: inWeek ? "color-mix(in srgb, var(--theme-surface-strong) 90%, transparent)" : "var(--theme-surface-soft)",
@@ -536,31 +633,64 @@ export function AdminPlanWorkspace({
                   }}
                 >
                   <LibraryPreview card={card} />
-                  <div className="mt-3 space-y-2">
-                    <div className="text-base font-semibold leading-tight" style={{ color: "var(--theme-text)" }}>
-                      {card.title}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {[card.project_name, card.room_zone, card.content_category, card.type?.title, card.status?.title]
-                        .filter((value): value is string => Boolean(value))
-                        .map((value) => (
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-2">
+                      <div className="text-base font-semibold leading-tight" style={{ color: "var(--theme-text)" }}>
+                        {card.title}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[card.project_name, card.room_zone, card.content_category, card.type?.title, card.status?.title]
+                          .filter((value): value is string => Boolean(value))
+                          .map((value) => (
+                            <span
+                              key={`${card.id}-${value}`}
+                              className="rounded-full border px-3 py-1.5 text-xs"
+                              style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-strong)", color: "var(--theme-text)" }}
+                            >
+                              {value}
+                            </span>
+                          ))}
+                        {card.ready_for_plan ? (
                           <span
-                            key={`${card.id}-${value}`}
                             className="rounded-full border px-3 py-1.5 text-xs"
-                            style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-strong)", color: "var(--theme-text)" }}
+                            style={{
+                              borderColor: "color-mix(in srgb, #55d879 42%, var(--theme-border))",
+                              background: "color-mix(in srgb, #55d879 12%, var(--theme-surface-strong))",
+                              color: "#aef3c1"
+                            }}
                           >
-                            {value}
+                            Ready for plan
                           </span>
-                        ))}
+                        ) : null}
+                      </div>
                     </div>
+
                     <div className="text-xs" style={{ color: inWeek ? "var(--theme-text)" : "var(--theme-text-muted)" }}>
-                      {inWeek ? "Already used in this week" : "Tap to place into active slot"}
+                      {inWeek ? "Already used in this week" : "Use this card for the active slot or fill metadata here."}
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button variant="default" disabled={pending} onClick={() => assignCard(card.id)}>
+                        Use For Slot
+                      </Button>
+                      <Button variant="outline" disabled={pending} onClick={() => openMetadataEditor(card)}>
+                        Edit Metadata
+                      </Button>
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
+
+          {!filteredCards.length ? (
+            <div
+              className="mt-4 rounded-[24px] border border-dashed px-5 py-10 text-center"
+              style={{ borderColor: "var(--theme-border-soft)", background: "var(--theme-surface-soft)", color: "var(--theme-text-muted)" }}
+            >
+              No cards match the current filters. Try resetting filters or switch off <span style={{ color: "var(--theme-text)" }}>Ready for plan only</span>.
+            </div>
+          ) : null}
         </section>
 
         <section className="space-y-6">
@@ -633,6 +763,58 @@ export function AdminPlanWorkspace({
           })}
         </section>
       </div>
+
+      <Dialog
+        open={Boolean(editingCard)}
+        onOpenChange={(open) => {
+          if (!open) setEditingCard(null);
+        }}
+        title={editingCard ? `Metadata · ${editingCard.title}` : "Edit metadata"}
+        description="Set reusable planning metadata directly in the library. Weekly placement stays inside the planner."
+        className="sm:max-w-3xl"
+      >
+        <form className="space-y-5" onSubmit={saveMetadata}>
+          <MetadataField
+            label="Project Name"
+            value={projectField}
+            options={PLAN_PROJECT_PRESETS}
+            otherPlaceholder="Custom project name"
+            onChange={setProjectField}
+          />
+
+          <MetadataField
+            label="Room / Zone"
+            value={roomField}
+            options={PLAN_ROOM_PRESETS}
+            otherPlaceholder="Custom room or zone"
+            onChange={setRoomField}
+          />
+
+          <MetadataField
+            label="Content Category"
+            value={categoryField}
+            options={PLAN_CATEGORY_PRESETS}
+            otherPlaceholder="Custom content category"
+            onChange={setCategoryField}
+          />
+
+          <label
+            className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm"
+            style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
+          >
+            <Checkbox checked={readyForPlanValue} onChange={(event) => setReadyForPlanValue(event.target.checked)} /> Ready for plan
+          </label>
+
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="outline" type="button" onClick={() => setEditingCard(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving..." : "Save Metadata"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </main>
   );
 }

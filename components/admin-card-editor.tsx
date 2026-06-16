@@ -14,21 +14,14 @@ import { ImagePreview } from "@/components/image-preview";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { upsertCardAction } from "@/lib/supabase/card-actions";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
-import { PLAN_CATEGORY_PRESETS, PLAN_PROJECT_PRESETS, PLAN_ROOM_PRESETS } from "@/lib/plan/config";
 import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const aspectPresets: CardAspectRatio[] = ["9:16", "16:9", "1:1", "4:5", "custom"];
 const cropPresets: CardCropMode[] = ["cover", "contain", "crop"];
-const metadataOtherValue = "__other";
 const toggleLabelClass =
   "flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
 const uploadLabelClass =
   "inline-flex cursor-pointer items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
-
-type PresetFieldState = {
-  preset: string;
-  custom: string;
-};
 
 function clampHeight(value: number) {
   return Math.max(80, Math.min(1200, value));
@@ -55,61 +48,6 @@ function extensionFromMimeType(type: string) {
   }
 }
 
-function createPresetFieldState(value: string | null | undefined, presets: readonly string[]): PresetFieldState {
-  if (!value) return { preset: "", custom: "" };
-  if (presets.includes(value)) {
-    return { preset: value, custom: "" };
-  }
-  return { preset: metadataOtherValue, custom: value };
-}
-
-function resolvePresetFieldValue(field: PresetFieldState) {
-  if (!field.preset) return "";
-  if (field.preset === metadataOtherValue) return field.custom.trim();
-  return field.preset;
-}
-
-function PresetField({
-  label,
-  value,
-  options,
-  otherPlaceholder,
-  onChange
-}: {
-  label: string;
-  value: PresetFieldState;
-  options: readonly string[];
-  otherPlaceholder: string;
-  onChange: (value: PresetFieldState) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="label">{label}</div>
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]">
-        <Select value={value.preset} onChange={(event) => onChange({ preset: event.target.value, custom: value.custom })}>
-          <option value="">Not set</option>
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-          <option value={metadataOtherValue}>Other</option>
-        </Select>
-        {value.preset === metadataOtherValue ? (
-          <Input value={value.custom} onChange={(event) => onChange({ preset: value.preset, custom: event.target.value })} placeholder={otherPlaceholder} />
-        ) : (
-          <div
-            className="hidden rounded-2xl border px-4 py-3 text-sm sm:flex sm:items-center"
-            style={{ borderColor: "var(--theme-border-soft)", background: "var(--theme-surface-soft)", color: "var(--theme-text-muted)" }}
-          >
-            Select Other to enter a custom value
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function AdminCardEditor({
   open,
   onOpenChange,
@@ -130,28 +68,20 @@ export function AdminCardEditor({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [thumbnailUrl, setThumbnailUrl] = useState(card?.thumbnail_url || "");
   const [projectKey, setProjectKey] = useState<ProjectKey>(card?.project_key || "main");
-  const [readyForPlan, setReadyForPlan] = useState(Boolean(card?.ready_for_plan));
   const [preview, setPreview] = useState({
     aspect_ratio: card?.aspect_ratio || "custom",
     height_px: card?.height_px || 320,
     crop_mode: card?.crop_mode || "cover"
   });
-  const [projectField, setProjectField] = useState<PresetFieldState>(() => createPresetFieldState(card?.project_name || null, PLAN_PROJECT_PRESETS));
-  const [roomField, setRoomField] = useState<PresetFieldState>(() => createPresetFieldState(card?.room_zone || null, PLAN_ROOM_PRESETS));
-  const [categoryField, setCategoryField] = useState<PresetFieldState>(() => createPresetFieldState(card?.content_category || null, PLAN_CATEGORY_PRESETS));
 
   useEffect(() => {
     setThumbnailUrl(card?.thumbnail_url || "");
     setProjectKey(card?.project_key || "main");
-    setReadyForPlan(Boolean(card?.ready_for_plan));
     setPreview({
       aspect_ratio: card?.aspect_ratio || "custom",
       height_px: card?.height_px || 320,
       crop_mode: card?.crop_mode || "cover"
     });
-    setProjectField(createPresetFieldState(card?.project_name || null, PLAN_PROJECT_PRESETS));
-    setRoomField(createPresetFieldState(card?.room_zone || null, PLAN_ROOM_PRESETS));
-    setCategoryField(createPresetFieldState(card?.content_category || null, PLAN_CATEGORY_PRESETS));
   }, [card, open]);
 
   const typeDefaults = types.find((type) => type.id === (card?.type_id || types[0]?.id));
@@ -163,10 +93,6 @@ export function AdminCardEditor({
     (card?.status_id && availableStatusIds.has(card.status_id) ? card.status_id : null) ||
     statuses[0]?.id ||
     "";
-
-  const resolvedProjectName = resolvePresetFieldValue(projectField);
-  const resolvedRoomZone = resolvePresetFieldValue(roomField);
-  const resolvedContentCategory = resolvePresetFieldValue(categoryField);
 
   const uploadImage = async (file: File) => {
     if (!supabase) {
@@ -202,14 +128,6 @@ export function AdminCardEditor({
     const formData = new FormData(event.currentTarget);
     formData.set("thumbnail_url", thumbnailUrl || card?.thumbnail_url || "");
     formData.set("project_key", projectKey);
-    formData.set("project_name", resolvedProjectName);
-    formData.set("room_zone", resolvedRoomZone);
-    formData.set("content_category", resolvedContentCategory);
-    if (readyForPlan) {
-      formData.set("ready_for_plan", "on");
-    } else {
-      formData.delete("ready_for_plan");
-    }
 
     startTransition(async () => {
       const result = await upsertCardAction(formData);
@@ -236,9 +154,6 @@ export function AdminCardEditor({
         <input type="hidden" name="id" defaultValue={card?.id || ""} />
         <input type="hidden" name="thumbnail_url" value={thumbnailUrl || card?.thumbnail_url || ""} />
         <input type="hidden" name="project_key" value={projectKey} />
-        <input type="hidden" name="project_name" value={resolvedProjectName} />
-        <input type="hidden" name="room_zone" value={resolvedRoomZone} />
-        <input type="hidden" name="content_category" value={resolvedContentCategory} />
 
         <div className="space-y-4">
           <Card>
@@ -342,45 +257,6 @@ export function AdminCardEditor({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div>
-                <CardTitle>Content metadata</CardTitle>
-                <CardDescription className="mt-1">Reusable metadata for the planning library. Weekly placement now lives only in the planner.</CardDescription>
-              </div>
-
-              <PresetField
-                label="Project Name"
-                value={projectField}
-                options={PLAN_PROJECT_PRESETS}
-                otherPlaceholder="Custom project name"
-                onChange={setProjectField}
-              />
-
-              <PresetField
-                label="Room / Zone"
-                value={roomField}
-                options={PLAN_ROOM_PRESETS}
-                otherPlaceholder="Custom room or zone"
-                onChange={setRoomField}
-              />
-
-              <PresetField
-                label="Content Category"
-                value={categoryField}
-                options={PLAN_CATEGORY_PRESETS}
-                otherPlaceholder="Custom content category"
-                onChange={setCategoryField}
-              />
-
-              <label
-                className={toggleLabelClass}
-                style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
-              >
-                <Checkbox name="ready_for_plan" checked={readyForPlan} onChange={(event) => setReadyForPlan(event.target.checked)} /> Ready for plan
-              </label>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="space-y-4">
