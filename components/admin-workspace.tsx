@@ -167,6 +167,9 @@ export function AdminWorkspace({
               <Link href="/admin/bloggers" className="rounded-full px-4 py-2 text-sm font-medium transition" style={{ color: "var(--theme-text-muted)" }}>
                 Bloggers
               </Link>
+              <Link href="/admin/plan" className="rounded-full px-4 py-2 text-sm font-medium transition" style={{ color: "var(--theme-text-muted)" }}>
+                Plan
+              </Link>
             </div>
           </div>
 

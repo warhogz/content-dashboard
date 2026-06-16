@@ -5,6 +5,7 @@ export type BloggerMaterialType = "script" | "video" | "none";
 export type BloggerStatusColor = "gray" | "blue" | "green" | "yellow" | "orange" | "red" | "purple";
 export type PlannedWeek = "week_1" | "week_2" | "week_3" | "week_4" | "week_5";
 export type PlannedDay = "monday" | "tuesday" | "wednesday" | "thursday";
+export type PlanEntryRole = "main" | "alternative";
 
 export const ARCHIVE_STATUS_SLUG = "archive";
 
@@ -82,6 +83,27 @@ export interface BloggerRow {
   instagram_url: string | null;
   material_type: BloggerMaterialType;
   material_url: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PlanWeekRow {
+  id: string;
+  project_key: ProjectKey;
+  month_label: string;
+  month_sort_date: string;
+  week_key: PlannedWeek;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PlanEntryRow {
+  id: string;
+  plan_week_id: string;
+  card_id: string;
+  day_key: PlannedDay;
+  role: PlanEntryRole;
+  position: number;
   created_at?: string;
   updated_at?: string;
 }
