@@ -3,6 +3,8 @@ export type CardAspectRatio = "9:16" | "16:9" | "1:1" | "4:5" | "custom";
 export type ProjectKey = "main" | "mena";
 export type BloggerMaterialType = "script" | "video" | "none";
 export type BloggerStatusColor = "gray" | "blue" | "green" | "yellow" | "orange" | "red" | "purple";
+export type PlannedWeek = "week_1" | "week_2" | "week_3" | "week_4" | "week_5";
+export type PlannedDay = "monday" | "tuesday" | "wednesday" | "thursday";
 
 export const ARCHIVE_STATUS_SLUG = "archive";
 
@@ -48,6 +50,16 @@ export interface ContentCard {
   is_archived: boolean;
   archived_at: string | null;
   archived_from_status_id: string | null;
+  project_name?: string | null;
+  room_zone?: string | null;
+  content_category?: string | null;
+  ready_for_plan?: boolean;
+  planned_month?: string | null;
+  planned_week?: PlannedWeek | null;
+  planned_day?: PlannedDay | null;
+  is_main_pick?: boolean;
+  alternative_for?: string | null;
+  plan_priority?: number | null;
   subtitle: string | null;
   notes: string | null;
   created_at?: string;

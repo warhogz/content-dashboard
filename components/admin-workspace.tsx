@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
-import { deleteCardAction, duplicateCardAction, toggleCardArchivedAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/actions";
+import { deleteCardAction, duplicateCardAction, toggleCardArchivedAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/card-actions";
 import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
 
 type AdminArchiveScope = "active" | "archive" | "all";

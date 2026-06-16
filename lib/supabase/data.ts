@@ -3,6 +3,28 @@ import { getMockData } from "@/lib/mock-data";
 import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, BloggerStatusColor, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
+const BASE_CARD_SELECT = [
+  "id",
+  "title",
+  "project_key",
+  "type_id",
+  "status_id",
+  "link",
+  "thumbnail_url",
+  "aspect_ratio",
+  "height_px",
+  "crop_mode",
+  "sort_order",
+  "is_hidden",
+  "is_pinned",
+  "is_archived",
+  "archived_at",
+  "archived_from_status_id",
+  "subtitle",
+  "notes",
+  "created_at",
+  "updated_at"
+].join(", ");
 
 function formatQueryError(error: unknown) {
   if (error instanceof Error) {
@@ -136,7 +158,7 @@ export async function getDashboardData() {
       async (signal) =>
         await supabase
           .from("cards")
-          .select("*, status:statuses!cards_status_id_fkey(*), type:card_types(*)")
+          .select(`${BASE_CARD_SELECT}, status:statuses!cards_status_id_fkey(*), type:card_types(*)`)
           .order("is_pinned", { ascending: false })
           .order("created_at", { ascending: false })
           .order("sort_order")
@@ -183,7 +205,7 @@ export async function getAdminData() {
       async (signal) =>
         await supabase
           .from("cards")
-          .select("*, status:statuses!cards_status_id_fkey(*), type:card_types(*)")
+          .select(`${BASE_CARD_SELECT}, status:statuses!cards_status_id_fkey(*), type:card_types(*)`)
           .order("is_pinned", { ascending: false })
           .order("created_at", { ascending: false })
           .order("sort_order")
