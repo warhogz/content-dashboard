@@ -8,6 +8,7 @@ import { CardItem } from "@/components/card-item";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FilterBar } from "@/components/filter-bar";
 import { ImagePreload } from "@/components/image-preload";
+import { PlanMetadataManager } from "@/components/plan-metadata-manager";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { SearchBar } from "@/components/search-bar";
 import { StatusManager } from "@/components/status-manager";
@@ -17,7 +18,7 @@ import { CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
 import { deleteCardAction, duplicateCardAction, toggleCardArchivedAction, toggleCardHiddenAction, toggleCardPinnedAction } from "@/lib/supabase/card-actions";
-import { CardTypeRow, ContentCard, StatusRow } from "@/lib/types";
+import { CardTypeRow, ContentCard, PlanMetadataCatalogs, StatusRow } from "@/lib/types";
 
 type AdminArchiveScope = "active" | "archive" | "all";
 
@@ -32,7 +33,7 @@ function archivedDateValue(card: ContentCard) {
 export function AdminWorkspace({
   initialData
 }: {
-  initialData: { statuses: StatusRow[]; types: CardTypeRow[]; cards: ContentCard[] };
+  initialData: { statuses: StatusRow[]; types: CardTypeRow[]; cards: ContentCard[]; catalogs: PlanMetadataCatalogs };
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -267,6 +268,7 @@ export function AdminWorkspace({
         card={editingCard}
         statuses={data.statuses}
         types={data.types}
+        catalogs={data.catalogs}
         onSaved={() => router.refresh()}
       />
 
@@ -283,9 +285,13 @@ export function AdminWorkspace({
         }}
       />
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
+      <div className="mt-10 grid gap-8">
+        <PlanMetadataManager catalogs={data.catalogs} />
+
+        <div className="grid gap-8 lg:grid-cols-2">
         <StatusManager statuses={data.statuses} />
         <TypeManager types={data.types} />
+        </div>
       </div>
     </main>
   );

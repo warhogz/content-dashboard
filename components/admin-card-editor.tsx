@@ -11,17 +11,24 @@ import { useToast } from "@/components/ui/toast";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { ImagePreview } from "@/components/image-preview";
+import { mergeCatalogValues } from "@/lib/plan/catalogs";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { upsertCardAction } from "@/lib/supabase/card-actions";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
-import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
+import { CardAspectRatio, CardCropMode, CardTypeRow, ContentCard, PlanMetadataCatalogs, ProjectKey, StatusRow } from "@/lib/types";
 
 const aspectPresets: CardAspectRatio[] = ["9:16", "16:9", "1:1", "4:5", "custom"];
 const cropPresets: CardCropMode[] = ["cover", "contain", "crop"];
+const metadataOtherValue = "__other";
 const toggleLabelClass =
   "flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
 const uploadLabelClass =
   "inline-flex cursor-pointer items-center gap-2 rounded-2xl border px-4 py-3 text-sm transition hover:bg-[var(--theme-surface-strong)]";
+
+type PresetFieldState = {
+  preset: string;
+  custom: string;
+};
 
 function clampHeight(value: number) {
   return Math.max(80, Math.min(1200, value));
@@ -48,12 +55,67 @@ function extensionFromMimeType(type: string) {
   }
 }
 
+function createPresetFieldState(value: string | null | undefined, options: readonly string[]): PresetFieldState {
+  if (!value) return { preset: "", custom: "" };
+  if (options.includes(value)) {
+    return { preset: value, custom: "" };
+  }
+  return { preset: metadataOtherValue, custom: value };
+}
+
+function resolvePresetFieldValue(field: PresetFieldState) {
+  if (!field.preset) return "";
+  return field.preset === metadataOtherValue ? field.custom.trim() : field.preset;
+}
+
+function PresetField({
+  label,
+  value,
+  options,
+  otherPlaceholder,
+  onChange
+}: {
+  label: string;
+  value: PresetFieldState;
+  options: readonly string[];
+  otherPlaceholder: string;
+  onChange: (value: PresetFieldState) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="label">{label}</div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]">
+        <Select value={value.preset} onChange={(event) => onChange({ preset: event.target.value, custom: value.custom })}>
+          <option value="">Not set</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+          <option value={metadataOtherValue}>Other</option>
+        </Select>
+        {value.preset === metadataOtherValue ? (
+          <Input value={value.custom} onChange={(event) => onChange({ preset: value.preset, custom: event.target.value })} placeholder={otherPlaceholder} />
+        ) : (
+          <div
+            className="hidden rounded-2xl border px-4 py-3 text-sm sm:flex sm:items-center"
+            style={{ borderColor: "var(--theme-border-soft)", background: "var(--theme-surface-soft)", color: "var(--theme-text-muted)" }}
+          >
+            Select Other to enter a custom value
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AdminCardEditor({
   open,
   onOpenChange,
   card,
   statuses,
   types,
+  catalogs,
   onSaved
 }: {
   open: boolean;
@@ -61,6 +123,7 @@ export function AdminCardEditor({
   card: ContentCard | null;
   statuses: StatusRow[];
   types: CardTypeRow[];
+  catalogs: PlanMetadataCatalogs;
   onSaved?: () => void;
 }) {
   const toast = useToast();
@@ -68,21 +131,35 @@ export function AdminCardEditor({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [thumbnailUrl, setThumbnailUrl] = useState(card?.thumbnail_url || "");
   const [projectKey, setProjectKey] = useState<ProjectKey>(card?.project_key || "main");
+  const [readyForPlan, setReadyForPlan] = useState(Boolean(card?.ready_for_plan));
   const [preview, setPreview] = useState({
     aspect_ratio: card?.aspect_ratio || "custom",
     height_px: card?.height_px || 320,
     crop_mode: card?.crop_mode || "cover"
   });
+  const projectOptions = useMemo(() => mergeCatalogValues(catalogs.projects, card?.project_name ? [card.project_name] : []), [card?.project_name, catalogs.projects]);
+  const roomOptions = useMemo(() => mergeCatalogValues(catalogs.rooms, card?.room_zone ? [card.room_zone] : []), [card?.room_zone, catalogs.rooms]);
+  const categoryOptions = useMemo(
+    () => mergeCatalogValues(catalogs.categories, types.map((type) => type.title), card?.content_category ? [card.content_category] : []),
+    [card?.content_category, catalogs.categories, types]
+  );
+  const [projectField, setProjectField] = useState<PresetFieldState>(() => createPresetFieldState(card?.project_name || null, projectOptions));
+  const [roomField, setRoomField] = useState<PresetFieldState>(() => createPresetFieldState(card?.room_zone || null, roomOptions));
+  const [categoryField, setCategoryField] = useState<PresetFieldState>(() => createPresetFieldState(card?.content_category || null, categoryOptions));
 
   useEffect(() => {
     setThumbnailUrl(card?.thumbnail_url || "");
     setProjectKey(card?.project_key || "main");
+    setReadyForPlan(Boolean(card?.ready_for_plan));
     setPreview({
       aspect_ratio: card?.aspect_ratio || "custom",
       height_px: card?.height_px || 320,
       crop_mode: card?.crop_mode || "cover"
     });
-  }, [card, open]);
+    setProjectField(createPresetFieldState(card?.project_name || null, projectOptions));
+    setRoomField(createPresetFieldState(card?.room_zone || null, roomOptions));
+    setCategoryField(createPresetFieldState(card?.content_category || null, categoryOptions));
+  }, [card, open, projectOptions, roomOptions, categoryOptions]);
 
   const typeDefaults = types.find((type) => type.id === (card?.type_id || types[0]?.id));
   const currentHeight = preview.height_px || typeDefaults?.default_height_px || 320;
@@ -93,6 +170,9 @@ export function AdminCardEditor({
     (card?.status_id && availableStatusIds.has(card.status_id) ? card.status_id : null) ||
     statuses[0]?.id ||
     "";
+  const resolvedProjectName = resolvePresetFieldValue(projectField);
+  const resolvedRoomZone = resolvePresetFieldValue(roomField);
+  const resolvedContentCategory = resolvePresetFieldValue(categoryField);
 
   const uploadImage = async (file: File) => {
     if (!supabase) {
@@ -128,6 +208,14 @@ export function AdminCardEditor({
     const formData = new FormData(event.currentTarget);
     formData.set("thumbnail_url", thumbnailUrl || card?.thumbnail_url || "");
     formData.set("project_key", projectKey);
+    formData.set("project_name", resolvedProjectName);
+    formData.set("room_zone", resolvedRoomZone);
+    formData.set("content_category", resolvedContentCategory);
+    if (readyForPlan) {
+      formData.set("ready_for_plan", "on");
+    } else {
+      formData.delete("ready_for_plan");
+    }
 
     startTransition(async () => {
       const result = await upsertCardAction(formData);
@@ -154,6 +242,9 @@ export function AdminCardEditor({
         <input type="hidden" name="id" defaultValue={card?.id || ""} />
         <input type="hidden" name="thumbnail_url" value={thumbnailUrl || card?.thumbnail_url || ""} />
         <input type="hidden" name="project_key" value={projectKey} />
+        <input type="hidden" name="project_name" value={resolvedProjectName} />
+        <input type="hidden" name="room_zone" value={resolvedRoomZone} />
+        <input type="hidden" name="content_category" value={resolvedContentCategory} />
 
         <div className="space-y-4">
           <Card>
@@ -254,6 +345,46 @@ export function AdminCardEditor({
                   <Checkbox name="is_pinned" defaultChecked={card?.is_pinned || false} /> Pin to top
                 </label>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <div>
+                <CardTitle>Content metadata</CardTitle>
+                <CardDescription className="mt-1">Optional planner metadata. The separate planner stays the main workflow, but you can fill it here too when it is convenient.</CardDescription>
+              </div>
+
+              <PresetField
+                label="Project Name"
+                value={projectField}
+                options={projectOptions}
+                otherPlaceholder="Custom project name"
+                onChange={setProjectField}
+              />
+
+              <PresetField
+                label="Room / Zone"
+                value={roomField}
+                options={roomOptions}
+                otherPlaceholder="Custom room or zone"
+                onChange={setRoomField}
+              />
+
+              <PresetField
+                label="Content Category"
+                value={categoryField}
+                options={categoryOptions}
+                otherPlaceholder="Custom content category"
+                onChange={setCategoryField}
+              />
+
+              <label
+                className={toggleLabelClass}
+                style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}
+              >
+                <Checkbox name="ready_for_plan" checked={readyForPlan} onChange={(event) => setReadyForPlan(event.target.checked)} /> Ready for plan
+              </label>
             </CardContent>
           </Card>
 

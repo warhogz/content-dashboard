@@ -1,8 +1,9 @@
 import { getMockData } from "@/lib/mock-data";
+import { getPlanMetadataCatalogs } from "@/lib/supabase/plan-catalogs";
 import { plannerDayOrder, plannerWeekOrder, weekRangeLabel } from "@/lib/plan/dates";
 import { calculatePlanWeekScore, type PlanScoreResult } from "@/lib/plan/score";
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
-import { CardTypeRow, ContentCard, PlanEntryRole, PlannedDay, PlannedWeek, PlanEntryRow, PlanWeekRow, ProjectKey, StatusRow } from "@/lib/types";
+import { CardTypeRow, ContentCard, PlanEntryRole, PlannedDay, PlannedWeek, PlanEntryRow, PlanMetadataCatalogs, PlanWeekRow, ProjectKey, StatusRow } from "@/lib/types";
 
 type PlannerCardRelation = {
   id: string;
@@ -138,6 +139,7 @@ export type AdminPlannerData = {
   cards: PlannerLibraryCard[];
   statuses: StatusRow[];
   types: CardTypeRow[];
+  catalogs: PlanMetadataCatalogs;
   weeks: PlannerWeekSummary[];
 };
 
@@ -181,19 +183,20 @@ export async function getAdminPlannerData(): Promise<AdminPlannerData> {
   const fallback = getMockData();
 
   if (!hasSupabase()) {
-    return { cards: [], statuses: fallback.statuses, types: fallback.types, weeks: [] };
+    return { cards: [], statuses: fallback.statuses, types: fallback.types, catalogs: await getPlanMetadataCatalogs(), weeks: [] };
   }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return { cards: [], statuses: fallback.statuses, types: fallback.types, weeks: [] };
+    return { cards: [], statuses: fallback.statuses, types: fallback.types, catalogs: await getPlanMetadataCatalogs(), weeks: [] };
   }
 
-  const [statusesResult, typesResult, weeksResult, entriesResult] = await Promise.all([
+  const [statusesResult, typesResult, weeksResult, entriesResult, catalogs] = await Promise.all([
     supabase.from("statuses").select("*").order("sort_order"),
     supabase.from("card_types").select("*").order("sort_order"),
     supabase.from("plan_weeks").select("*").order("month_sort_date", { ascending: false }).order("week_key"),
-    supabase.from("plan_entries").select("id, plan_week_id, card_id, day_key, role, position, created_at, updated_at").order("created_at")
+    supabase.from("plan_entries").select("id, plan_week_id, card_id, day_key, role, position, created_at, updated_at").order("created_at"),
+    getPlanMetadataCatalogs()
   ]);
 
   const normalizedWeeks = (weeksResult.data ?? []).map((row) => normalizePlanWeekRow(row as Record<string, unknown>));
@@ -228,6 +231,7 @@ export async function getAdminPlannerData(): Promise<AdminPlannerData> {
     cards: uniqueCards,
     statuses: (statusesResult.data as StatusRow[] | null) ?? fallback.statuses,
     types: (typesResult.data as CardTypeRow[] | null) ?? fallback.types,
+    catalogs,
     weeks
   };
 }

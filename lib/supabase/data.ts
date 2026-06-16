@@ -1,6 +1,7 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
+import { getPlanMetadataCatalogs } from "@/lib/supabase/plan-catalogs";
 import { getMockData } from "@/lib/mock-data";
-import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, BloggerStatusColor, CardTypeRow, ContentCard, ProjectKey, StatusRow } from "@/lib/types";
+import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, BloggerStatusColor, CardTypeRow, ContentCard, PlanMetadataCatalogs, ProjectKey, StatusRow } from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 const BASE_CARD_SELECT = [
@@ -175,14 +176,26 @@ export async function getDashboardData() {
 }
 
 export async function getAdminData() {
-  if (!hasSupabase()) return getMockData();
+  if (!hasSupabase()) {
+    const fallback = getMockData();
+    return {
+      ...fallback,
+      catalogs: await getPlanMetadataCatalogs()
+    };
+  }
 
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return getMockData();
+  if (!supabase) {
+    const fallback = getMockData();
+    return {
+      ...fallback,
+      catalogs: await getPlanMetadataCatalogs()
+    };
+  }
 
   const fallback = getMockData();
 
-  const [statuses, types, cards] = await Promise.all([
+  const [statuses, types, cards, catalogs] = await Promise.all([
     safeQuery<StatusRow[]>(
       async (signal) =>
         await supabase
@@ -211,13 +224,15 @@ export async function getAdminData() {
           .order("sort_order")
           .abortSignal(signal),
       "admin-cards"
-    )
+    ),
+    getPlanMetadataCatalogs()
   ]);
 
   return {
     statuses: normalizeStatuses(statuses) ?? fallback.statuses,
     types: types ?? fallback.types,
-    cards: normalizeCards(cards) ?? fallback.cards
+    cards: normalizeCards(cards) ?? fallback.cards,
+    catalogs: (catalogs as PlanMetadataCatalogs) ?? { projects: [], rooms: [], categories: [] }
   };
 }
 

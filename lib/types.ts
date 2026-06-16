@@ -6,8 +6,15 @@ export type BloggerStatusColor = "gray" | "blue" | "green" | "yellow" | "orange"
 export type PlannedWeek = "week_1" | "week_2" | "week_3" | "week_4" | "week_5";
 export type PlannedDay = "monday" | "tuesday" | "wednesday" | "thursday";
 export type PlanEntryRole = "main" | "alternative";
+export type PlanMetadataCatalogKind = "projects" | "rooms" | "categories";
 
 export const ARCHIVE_STATUS_SLUG = "archive";
+
+export interface PlanMetadataCatalogs {
+  projects: string[];
+  rooms: string[];
+  categories: string[];
+}
 
 export interface StatusRow {
   id: string;

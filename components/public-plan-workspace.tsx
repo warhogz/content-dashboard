@@ -177,8 +177,9 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,300px)_1fr]">
+          <div className="grid gap-4 lg:grid-cols-[auto_minmax(240px,320px)_minmax(0,1fr)] lg:items-start">
             <ProjectSegmentedToggle
+              className="self-start justify-self-start"
               value={projectKey}
               onChange={(value) => {
                 setProjectKey(value);
@@ -190,7 +191,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
               ]}
             />
 
-            <Select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
+            <Select className="self-start" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
               {groupedMonths.map((month) => (
                 <option key={month.label} value={month.label}>
                   {month.label}
@@ -198,7 +199,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
               ))}
             </Select>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 self-start md:grid-cols-2 xl:grid-cols-5">
               {activeMonth?.weeks.map((week) => {
                 const active = week.week_key === selectedWeek;
                 return (

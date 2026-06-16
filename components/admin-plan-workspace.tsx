@@ -12,7 +12,8 @@ import { Select } from "@/components/ui/select";
 import { SearchBar } from "@/components/search-bar";
 import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { useToast } from "@/components/ui/toast";
-import { getPlannedMonthOptions, PLAN_CATEGORY_PRESETS, PLAN_PROJECT_PRESETS, PLAN_ROOM_PRESETS, PLAN_WEEK_OPTIONS } from "@/lib/plan/config";
+import { mergeCatalogValues } from "@/lib/plan/catalogs";
+import { getPlannedMonthOptions, PLAN_WEEK_OPTIONS } from "@/lib/plan/config";
 import { dayHeading, plannerDayOrder } from "@/lib/plan/dates";
 import { type AdminPlannerData, type PlannerLibraryCard, type PlannerResolvedEntry } from "@/lib/supabase/planner-data";
 import { clearPlanWeekAction, setPlanEntryAction, updatePlannerCardMetadataAction } from "@/lib/supabase/planner-actions";
@@ -259,31 +260,20 @@ export function AdminPlanWorkspace({
   const effectiveMonth = selectedMonth || monthOptions[0] || "";
 
   const projectOptions = useMemo(() => {
-    const values = new Set<string>(PLAN_PROJECT_PRESETS);
-    for (const card of initialData.cards) {
-      const value = card.project_name?.trim();
-      if (value) values.add(value);
-    }
-    return Array.from(values).sort((a, b) => a.localeCompare(b, "en"));
-  }, [initialData.cards]);
+    return mergeCatalogValues(initialData.catalogs.projects, initialData.cards.map((card) => card.project_name || "").filter(Boolean) as string[]);
+  }, [initialData.cards, initialData.catalogs.projects]);
 
   const roomOptions = useMemo(() => {
-    const values = new Set<string>(PLAN_ROOM_PRESETS);
-    for (const card of initialData.cards) {
-      const value = card.room_zone?.trim();
-      if (value) values.add(value);
-    }
-    return Array.from(values).sort((a, b) => a.localeCompare(b, "en"));
-  }, [initialData.cards]);
+    return mergeCatalogValues(initialData.catalogs.rooms, initialData.cards.map((card) => card.room_zone || "").filter(Boolean) as string[]);
+  }, [initialData.cards, initialData.catalogs.rooms]);
 
   const categoryOptions = useMemo(() => {
-    const values = new Set<string>(PLAN_CATEGORY_PRESETS);
-    for (const card of initialData.cards) {
-      const value = card.content_category?.trim();
-      if (value) values.add(value);
-    }
-    return Array.from(values).sort((a, b) => a.localeCompare(b, "en"));
-  }, [initialData.cards]);
+    return mergeCatalogValues(
+      initialData.catalogs.categories,
+      initialData.types.map((type) => type.title),
+      initialData.cards.map((card) => card.content_category || "").filter(Boolean) as string[]
+    );
+  }, [initialData.cards, initialData.catalogs.categories, initialData.types]);
 
   const weekCards = useMemo(() => {
     return initialData.weeks.filter((week) => week.project_key === projectKey && week.month_label === effectiveMonth);
@@ -326,9 +316,9 @@ export function AdminPlanWorkspace({
 
   const openMetadataEditor = (card: PlannerLibraryCard) => {
     setEditingCard(card);
-    setProjectField(createMetadataFieldState(card.project_name, PLAN_PROJECT_PRESETS));
-    setRoomField(createMetadataFieldState(card.room_zone, PLAN_ROOM_PRESETS));
-    setCategoryField(createMetadataFieldState(card.content_category, PLAN_CATEGORY_PRESETS));
+    setProjectField(createMetadataFieldState(card.project_name, projectOptions));
+    setRoomField(createMetadataFieldState(card.room_zone, roomOptions));
+    setCategoryField(createMetadataFieldState(card.content_category, categoryOptions));
     setReadyForPlanValue(Boolean(card.ready_for_plan));
   };
 
@@ -777,7 +767,7 @@ export function AdminPlanWorkspace({
           <MetadataField
             label="Project Name"
             value={projectField}
-            options={PLAN_PROJECT_PRESETS}
+            options={projectOptions}
             otherPlaceholder="Custom project name"
             onChange={setProjectField}
           />
@@ -785,7 +775,7 @@ export function AdminPlanWorkspace({
           <MetadataField
             label="Room / Zone"
             value={roomField}
-            options={PLAN_ROOM_PRESETS}
+            options={roomOptions}
             otherPlaceholder="Custom room or zone"
             onChange={setRoomField}
           />
@@ -793,7 +783,7 @@ export function AdminPlanWorkspace({
           <MetadataField
             label="Content Category"
             value={categoryField}
-            options={PLAN_CATEGORY_PRESETS}
+            options={categoryOptions}
             otherPlaceholder="Custom content category"
             onChange={setCategoryField}
           />

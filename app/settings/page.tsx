@@ -1,9 +1,10 @@
 import { getAdminData } from "@/lib/supabase/data";
+import { PlanMetadataManager } from "@/components/plan-metadata-manager";
 import { StatusManager } from "@/components/status-manager";
 import { TypeManager } from "@/components/type-manager";
 
 export default async function SettingsPage() {
-  const { statuses, types } = await getAdminData();
+  const { statuses, types, catalogs } = await getAdminData();
 
   return (
     <main className="page-shell py-8">
@@ -22,6 +23,7 @@ export default async function SettingsPage() {
       </div>
 
       <div className="grid gap-8">
+        <PlanMetadataManager catalogs={catalogs} />
         <StatusManager statuses={statuses} />
         <TypeManager types={types} />
       </div>
