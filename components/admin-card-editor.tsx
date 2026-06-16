@@ -139,13 +139,8 @@ export function AdminCardEditor({
   });
   const projectOptions = useMemo(() => mergeCatalogValues(catalogs.projects, card?.project_name ? [card.project_name] : []), [card?.project_name, catalogs.projects]);
   const roomOptions = useMemo(() => mergeCatalogValues(catalogs.rooms, card?.room_zone ? [card.room_zone] : []), [card?.room_zone, catalogs.rooms]);
-  const categoryOptions = useMemo(
-    () => mergeCatalogValues(catalogs.categories, types.map((type) => type.title), card?.content_category ? [card.content_category] : []),
-    [card?.content_category, catalogs.categories, types]
-  );
   const [projectField, setProjectField] = useState<PresetFieldState>(() => createPresetFieldState(card?.project_name || null, projectOptions));
   const [roomField, setRoomField] = useState<PresetFieldState>(() => createPresetFieldState(card?.room_zone || null, roomOptions));
-  const [categoryField, setCategoryField] = useState<PresetFieldState>(() => createPresetFieldState(card?.content_category || null, categoryOptions));
 
   useEffect(() => {
     setThumbnailUrl(card?.thumbnail_url || "");
@@ -158,8 +153,7 @@ export function AdminCardEditor({
     });
     setProjectField(createPresetFieldState(card?.project_name || null, projectOptions));
     setRoomField(createPresetFieldState(card?.room_zone || null, roomOptions));
-    setCategoryField(createPresetFieldState(card?.content_category || null, categoryOptions));
-  }, [card, open, projectOptions, roomOptions, categoryOptions]);
+  }, [card, open, projectOptions, roomOptions]);
 
   const typeDefaults = types.find((type) => type.id === (card?.type_id || types[0]?.id));
   const currentHeight = preview.height_px || typeDefaults?.default_height_px || 320;
@@ -172,7 +166,6 @@ export function AdminCardEditor({
     "";
   const resolvedProjectName = resolvePresetFieldValue(projectField);
   const resolvedRoomZone = resolvePresetFieldValue(roomField);
-  const resolvedContentCategory = resolvePresetFieldValue(categoryField);
 
   const uploadImage = async (file: File) => {
     if (!supabase) {
@@ -210,7 +203,6 @@ export function AdminCardEditor({
     formData.set("project_key", projectKey);
     formData.set("project_name", resolvedProjectName);
     formData.set("room_zone", resolvedRoomZone);
-    formData.set("content_category", resolvedContentCategory);
     if (readyForPlan) {
       formData.set("ready_for_plan", "on");
     } else {
@@ -244,7 +236,6 @@ export function AdminCardEditor({
         <input type="hidden" name="project_key" value={projectKey} />
         <input type="hidden" name="project_name" value={resolvedProjectName} />
         <input type="hidden" name="room_zone" value={resolvedRoomZone} />
-        <input type="hidden" name="content_category" value={resolvedContentCategory} />
 
         <div className="space-y-4">
           <Card>
@@ -370,15 +361,6 @@ export function AdminCardEditor({
                 otherPlaceholder="Custom room or zone"
                 onChange={setRoomField}
               />
-
-              <PresetField
-                label="Content Category"
-                value={categoryField}
-                options={categoryOptions}
-                otherPlaceholder="Custom content category"
-                onChange={setCategoryField}
-              />
-
               <label
                 className={toggleLabelClass}
                 style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}

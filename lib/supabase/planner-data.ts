@@ -99,9 +99,9 @@ function summarizeCategories(cards: PlannerLibraryCard[]) {
   const counts = new Map<string, number>();
 
   for (const card of cards) {
-    const category = card.content_category?.trim();
-    if (!category) continue;
-    counts.set(category, (counts.get(category) || 0) + 1);
+    const typeTitle = card.type?.title?.trim();
+    if (!typeTitle) continue;
+    counts.set(typeTitle, (counts.get(typeTitle) || 0) + 1);
   }
 
   return Array.from(counts.entries())

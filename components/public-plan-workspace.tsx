@@ -22,10 +22,24 @@ function modeLinkClass(active: boolean) {
   return "rounded-full px-4 py-2 text-sm font-medium transition duration-200";
 }
 
-function renderMetricList(cards: PlannerLibraryCard[], key: "project_name" | "room_zone" | "content_category") {
+function renderMetricList(cards: PlannerLibraryCard[], key: "project_name" | "room_zone") {
   const counts = new Map<string, number>();
   for (const card of cards) {
     const value = card[key]?.trim();
+    if (!value) continue;
+    counts.set(value, (counts.get(value) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "en"))
+    .map(([label, count]) => `${label} ${count}`)
+    .join(" · ");
+}
+
+function renderTypeMetricList(cards: PlannerLibraryCard[]) {
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    const value = card.type?.title?.trim();
     if (!value) continue;
     counts.set(value, (counts.get(value) || 0) + 1);
   }
@@ -272,7 +286,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                   <div className="space-y-2 text-sm" style={{ color: "var(--theme-text-muted)" }}>
                     <div>Projects: {renderMetricList(activeWeek.mainCards, "project_name") || "Not enough data"}</div>
                     <div>Rooms: {renderMetricList(activeWeek.mainCards, "room_zone") || "Not enough data"}</div>
-                    <div>Categories: {renderMetricList(activeWeek.mainCards, "content_category") || "Not enough data"}</div>
+                    <div>Types: {renderTypeMetricList(activeWeek.mainCards) || "Not enough data"}</div>
                     <div className="pt-1">
                       {activeWeek.score.items.map((item) => (
                         <div key={item.label}>
@@ -306,7 +320,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {[entry.primary?.project_name, entry.primary?.room_zone, entry.primary?.content_category]
+                          {[entry.primary?.project_name, entry.primary?.room_zone, entry.primary?.type?.title]
                             .filter((value): value is string => Boolean(value))
                             .map((value) => (
                               <span
@@ -367,7 +381,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                                 {alternative.title}
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {[alternative.project_name, alternative.room_zone, alternative.content_category]
+                                {[alternative.project_name, alternative.room_zone, alternative.type?.title]
                                   .filter((value): value is string => Boolean(value))
                                   .map((value) => (
                                     <span

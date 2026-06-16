@@ -192,7 +192,7 @@ function SlotCard({
               {card.title}
             </div>
             <div className="flex flex-wrap gap-2">
-              {[compactLabel("Project", card.project_name), compactLabel("Room", card.room_zone), compactLabel("Category", card.content_category)]
+              {[compactLabel("Project", card.project_name), compactLabel("Room", card.room_zone), compactLabel("Type", card.type?.title)]
                 .filter((value): value is string => Boolean(value))
                 .map((item) => (
                   <span
@@ -237,14 +237,12 @@ export function AdminPlanWorkspace({
   const [readyOnly, setReadyOnly] = useState(false);
   const [projectFilter, setProjectFilter] = useState("");
   const [roomFilter, setRoomFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [activeTarget, setActiveTarget] = useState<SlotTarget>({ day: "monday", role: "main", position: 0 });
   const [editingCard, setEditingCard] = useState<PlannerLibraryCard | null>(null);
   const [projectField, setProjectField] = useState<MetadataFieldState>({ preset: "", custom: "" });
   const [roomField, setRoomField] = useState<MetadataFieldState>({ preset: "", custom: "" });
-  const [categoryField, setCategoryField] = useState<MetadataFieldState>({ preset: "", custom: "" });
   const [readyForPlanValue, setReadyForPlanValue] = useState(false);
 
   const monthOptions = useMemo(() => {
@@ -266,14 +264,6 @@ export function AdminPlanWorkspace({
   const roomOptions = useMemo(() => {
     return mergeCatalogValues(initialData.catalogs.rooms, initialData.cards.map((card) => card.room_zone || "").filter(Boolean) as string[]);
   }, [initialData.cards, initialData.catalogs.rooms]);
-
-  const categoryOptions = useMemo(() => {
-    return mergeCatalogValues(
-      initialData.catalogs.categories,
-      initialData.types.map((type) => type.title),
-      initialData.cards.map((card) => card.content_category || "").filter(Boolean) as string[]
-    );
-  }, [initialData.cards, initialData.catalogs.categories, initialData.types]);
 
   const weekCards = useMemo(() => {
     return initialData.weeks.filter((week) => week.project_key === projectKey && week.month_label === effectiveMonth);
@@ -301,10 +291,9 @@ export function AdminPlanWorkspace({
         const matchesReady = readyOnly ? Boolean(card.ready_for_plan) : true;
         const matchesProject = projectFilter ? (card.project_name || "") === projectFilter : true;
         const matchesRoom = roomFilter ? (card.room_zone || "") === roomFilter : true;
-        const matchesCategory = categoryFilter ? (card.content_category || "") === categoryFilter : true;
         const matchesType = typeFilter ? card.type_id === typeFilter : true;
         const matchesStatus = statusFilter ? card.status_id === statusFilter : true;
-        return matchesSearch && matchesReady && matchesProject && matchesRoom && matchesCategory && matchesType && matchesStatus;
+        return matchesSearch && matchesReady && matchesProject && matchesRoom && matchesType && matchesStatus;
       })
       .sort((a, b) => {
         const aUsed = usedCardIds.has(a.id);
@@ -312,13 +301,12 @@ export function AdminPlanWorkspace({
         if (aUsed !== bUsed) return Number(aUsed) - Number(bUsed);
         return (a.created_at || "") < (b.created_at || "") ? 1 : -1;
       });
-  }, [categoryFilter, initialData.cards, projectFilter, projectKey, readyOnly, roomFilter, search, statusFilter, typeFilter, usedCardIds]);
+  }, [initialData.cards, projectFilter, projectKey, readyOnly, roomFilter, search, statusFilter, typeFilter, usedCardIds]);
 
   const openMetadataEditor = (card: PlannerLibraryCard) => {
     setEditingCard(card);
     setProjectField(createMetadataFieldState(card.project_name, projectOptions));
     setRoomField(createMetadataFieldState(card.room_zone, roomOptions));
-    setCategoryField(createMetadataFieldState(card.content_category, categoryOptions));
     setReadyForPlanValue(Boolean(card.ready_for_plan));
   };
 
@@ -377,7 +365,6 @@ export function AdminPlanWorkspace({
       formData.set("id", editingCard.id);
       formData.set("project_name", resolveMetadataFieldValue(projectField));
       formData.set("room_zone", resolveMetadataFieldValue(roomField));
-      formData.set("content_category", resolveMetadataFieldValue(categoryField));
       if (readyForPlanValue) {
         formData.set("ready_for_plan", "on");
       }
@@ -439,7 +426,7 @@ export function AdminPlanWorkspace({
             </div>
             <div className="rounded-[24px] border p-4" style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-strong)" }}>
               <div className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--theme-text-muted)" }}>
-                Category Mix
+                Type Mix
               </div>
               <div className="mt-3 text-sm font-medium leading-6" style={{ color: "var(--theme-text)" }}>
                 {activeWeek?.categorySummary || "Not enough data yet"}
@@ -554,15 +541,6 @@ export function AdminPlanWorkspace({
                 ))}
               </Select>
 
-              <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                <option value="">All categories</option>
-                {categoryOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-
               <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                 <option value="">All types</option>
                 {initialData.types.map((type: CardTypeRow) => (
@@ -588,7 +566,6 @@ export function AdminPlanWorkspace({
                   setReadyOnly(false);
                   setProjectFilter("");
                   setRoomFilter("");
-                  setCategoryFilter("");
                   setTypeFilter("");
                   setStatusFilter("");
                 }}
@@ -629,7 +606,7 @@ export function AdminPlanWorkspace({
                         {card.title}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {[card.project_name, card.room_zone, card.content_category, card.type?.title, card.status?.title]
+                        {[card.project_name, card.room_zone, card.type?.title, card.status?.title]
                           .filter((value): value is string => Boolean(value))
                           .map((value) => (
                             <span
@@ -779,15 +756,6 @@ export function AdminPlanWorkspace({
             otherPlaceholder="Custom room or zone"
             onChange={setRoomField}
           />
-
-          <MetadataField
-            label="Content Category"
-            value={categoryField}
-            options={categoryOptions}
-            otherPlaceholder="Custom content category"
-            onChange={setCategoryField}
-          />
-
           <label
             className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm"
             style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", color: "var(--theme-text)" }}

@@ -117,7 +117,6 @@ export async function upsertCardAction(formData: FormData): Promise<ActionResult
     is_pinned: formData.get("is_pinned") === "on",
     project_name: parseOptionalTextValue(formData.get("project_name")),
     room_zone: parseOptionalTextValue(formData.get("room_zone")),
-    content_category: parseOptionalTextValue(formData.get("content_category")),
     ready_for_plan: formData.get("ready_for_plan") === "on"
   };
 

@@ -85,12 +85,12 @@ export function PlanMetadataManager({ catalogs }: { catalogs: PlanMetadataCatalo
         <CardContent className="space-y-4 p-5">
           <div>
             <CardTitle>Planning Metadata</CardTitle>
-            <CardDescription className="mt-1">Manage projects, rooms and content categories that feed both the card editor and the publishing planner.</CardDescription>
+            <CardDescription className="mt-1">Manage projects and rooms that feed both the card editor and the publishing planner. Content types come from the shared card type system.</CardDescription>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardContent className="space-y-4 p-5">
             <div>
@@ -108,16 +108,6 @@ export function PlanMetadataManager({ catalogs }: { catalogs: PlanMetadataCatalo
               <CardDescription className="mt-1">Spatial or thematic zones used across planned posts.</CardDescription>
             </div>
             <CatalogSection kind="rooms" values={catalogs.rooms} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-4 p-5">
-            <div>
-              <CardTitle>Content Categories</CardTitle>
-              <CardDescription className="mt-1">Planner categories and reel/post formats used in filters and score logic.</CardDescription>
-            </div>
-            <CatalogSection kind="categories" values={catalogs.categories} />
           </CardContent>
         </Card>
       </div>

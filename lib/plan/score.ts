@@ -3,7 +3,9 @@ type ScoreableCard = {
   link?: string | null;
   project_name?: string | null;
   room_zone?: string | null;
-  content_category?: string | null;
+  type?: {
+    title?: string | null;
+  } | null;
 };
 
 export type PlanScoreItem = {
@@ -25,8 +27,8 @@ function distinctCount(values: Array<string | null | undefined>) {
   return new Set(values.map(normalizeValue).filter(Boolean)).size;
 }
 
-function countMatches(cards: ScoreableCard[], matcher: (category: string) => boolean) {
-  return cards.reduce((count, card) => count + (matcher(normalizeValue(card.content_category)) ? 1 : 0), 0);
+function countMatches(cards: ScoreableCard[], matcher: (typeTitle: string) => boolean) {
+  return cards.reduce((count, card) => count + (matcher(normalizeValue(card.type?.title)) ? 1 : 0), 0);
 }
 
 function consecutiveRepeatCount(values: string[]) {
@@ -50,15 +52,15 @@ function scoreLabel(total: number) {
 export function calculatePlanWeekScore(cards: ScoreableCard[]) {
   const visibleCards = cards.filter((card): card is ScoreableCard => Boolean(card));
   const items: PlanScoreItem[] = [];
-  const categories = visibleCards.map((card) => normalizeValue(card.content_category));
+  const types = visibleCards.map((card) => normalizeValue(card.type?.title));
   const rooms = visibleCards.map((card) => normalizeValue(card.room_zone));
   const projects = visibleCards.map((card) => normalizeValue(card.project_name));
-  const carouselCount = countMatches(visibleCards, (category) => category.includes("carousel"));
-  const hasTrendReel = countMatches(visibleCards, (category) => category.includes("trend")) > 0;
-  const hasTalkingHead = countMatches(visibleCards, (category) => category.includes("talking")) > 0;
+  const carouselCount = countMatches(visibleCards, (typeTitle) => typeTitle.includes("carousel"));
+  const hasTrendReel = countMatches(visibleCards, (typeTitle) => typeTitle.includes("trend")) > 0;
+  const hasTalkingHead = countMatches(visibleCards, (typeTitle) => typeTitle.includes("talking")) > 0;
   const projectDiversity = distinctCount(visibleCards.map((card) => card.project_name));
   const roomDiversity = distinctCount(visibleCards.map((card) => card.room_zone));
-  const repeatedCategories = consecutiveRepeatCount(categories);
+  const repeatedTypes = consecutiveRepeatCount(types);
   const repeatedRooms = consecutiveRepeatCount(rooms);
   const maxProjectCount = Math.max(
     0,
@@ -74,14 +76,14 @@ export function calculatePlanWeekScore(cards: ScoreableCard[]) {
   if (hasTalkingHead) items.push({ label: "Talking Head included", points: 10 });
   if (projectDiversity >= 3) items.push({ label: "Project diversity", points: 10 });
   if (roomDiversity >= 3) items.push({ label: "Room diversity", points: 10 });
-  if (visibleCards.length > 1 && repeatedCategories === 0) items.push({ label: "Category rhythm stays varied", points: 10 });
+  if (visibleCards.length > 1 && repeatedTypes === 0) items.push({ label: "Type rhythm stays varied", points: 10 });
   if (visibleCards.length > 1 && repeatedRooms === 0) items.push({ label: "Room rhythm stays varied", points: 10 });
   if (visibleCards.length === 4 && missingDropboxCount === 0) items.push({ label: "All Dropbox links ready", points: 5 });
 
   if (visibleCards.length < 4) items.push({ label: "Week is not fully planned", points: -25 });
   if (carouselCount === 0) items.push({ label: "Carousel missing", points: -10 });
   if (missingDropboxCount > 0) items.push({ label: `Dropbox missing on ${missingDropboxCount} post${missingDropboxCount > 1 ? "s" : ""}`, points: -20 });
-  if (repeatedCategories > 0) items.push({ label: `Same category repeated ${repeatedCategories} time${repeatedCategories > 1 ? "s" : ""}`, points: -20 });
+  if (repeatedTypes > 0) items.push({ label: `Same type repeated ${repeatedTypes} time${repeatedTypes > 1 ? "s" : ""}`, points: -20 });
   if (repeatedRooms > 0) items.push({ label: `Same room repeated ${repeatedRooms} time${repeatedRooms > 1 ? "s" : ""}`, points: -15 });
   if (maxProjectCount >= 3) items.push({ label: "One project dominates the week", points: -15 });
 
