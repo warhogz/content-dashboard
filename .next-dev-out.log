@@ -1,0 +1,14 @@
+
+> content-dashboard@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3001
+   - Network:      http://172.18.0.1:3001
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling /plan ...
+ ✓ Compiled /plan in 928ms (710 modules)
+ GET /plan 200 in 2310ms
