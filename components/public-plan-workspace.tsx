@@ -344,7 +344,7 @@ function MiniCover({
         <img src={previewUrl} alt={card.title} className="h-full w-full object-cover" loading="eager" decoding="async" />
       ) : (
         <div className="flex h-full items-center justify-center px-3 text-center text-xs" style={{ color: "var(--theme-text-muted)" }}>
-          No preview
+          Нет превью
         </div>
       )}
     </div>
@@ -527,7 +527,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="label tracking-[0.24em]" style={{ color: "rgba(246,241,233,.42)" }}>
-                Publishing Plan
+                План публикаций
               </div>
               <h1 className="mt-5 text-[42px] font-semibold leading-[0.96] tracking-[-0.065em] sm:text-[56px]" style={{ color: "var(--theme-text)" }}>
                 Plan
@@ -551,11 +551,11 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                     color: "rgba(246,241,233,.72)"
                   }}
                 >
-                  Balance of variety, not video quality
+                  Баланс разнообразия, а не качества роликов
                 </span>
               </div>
               <p className="mt-4 max-w-3xl text-[15px] leading-7 sm:text-[17px]" style={{ color: "rgba(246,241,233,.66)" }}>
-                Founder-facing month view: it shows how varied the publishing mix feels across weeks, projects and rooms, and instantly points to where the structure starts repeating.
+                Founder-view для месяца: показывает, насколько неделя и месяц собраны по разнообразию контента, и сразу подсвечивает места, где структура начинает повторяться.
               </p>
             </div>
 
@@ -568,10 +568,10 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
               }}
             >
               <Link href="/" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
-                Grid
+                Лента
               </Link>
               <Link href="/bloggers" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
-                Bloggers
+                Блогеры
               </Link>
               <span
                 className={modeLinkClass(true)}
@@ -681,7 +681,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                   </div>
 
                   <p className="max-w-3xl text-[15px] leading-7" style={{ color: "rgba(246,241,233,.66)" }}>
-                    This month view is here to answer one thing quickly: how balanced the plan feels right now, where variety drops, and which weeks start repeating the same project, room or format.
+                    Этот экран месяца нужен для одного: быстро показать, насколько сейчас сбалансирован план, где падает разнообразие и в каких неделях начинают повторяться один и тот же проект, комната или формат.
                   </p>
 
                   {monthSummary.issues.length ? (
@@ -702,10 +702,10 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
 
               <section className="rounded-[28px] border p-4" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)" }}>
                 <div className="mb-3 text-[11px] uppercase tracking-[0.12em]" style={{ color: "rgba(246,241,233,.66)" }}>
-                  Month Composition
+                  Состав месяца
                 </div>
                 <p className="mb-4 max-w-3xl text-sm leading-6" style={{ color: "rgba(246,241,233,.66)" }}>
-                  A quick composition strip: which formats dominate the month, and how they spread across projects and rooms.
+                  Здесь видно, какие форматы доминируют в месяце и как они распределяются по проектам и комнатам.
                 </p>
 
                 <div className="grid gap-3">
@@ -754,7 +754,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                       Календарь месяца
                     </div>
                     <div className="mt-1 text-sm" style={{ color: "rgba(246,241,233,.42)" }}>
-                      Monday to Thursday, main picks only
+                      Понедельник - четверг, только основные публикации
                     </div>
                   </div>
                 </div>
@@ -922,8 +922,8 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
 
                     <p className="max-w-3xl text-[15px] leading-7" style={{ color: "rgba(246,241,233,.66)" }}>
                       {selectedWeekView.postsCount
-                        ? `This week currently has ${selectedWeekView.postsCount} of 4 publishing slots filled. Below you can see the exact reasons the balance score falls, plus the current main lineup.`
-                        : "No week has been assembled yet. As soon as the slots are filled, this screen turns into the live weekly publishing snapshot."}
+                        ? `Сейчас в неделе собрано ${selectedWeekView.postsCount} из 4 слотов. Ниже видно, что именно тянет баланс вниз и какие материалы стоят в основном составе недели.`
+                        : "Для этой недели еще нет собранного плана. Как только появятся публикации, здесь сразу сложится живая недельная сводка."}
                     </p>
 
                     {selectedWeekView.issues.length ? (
@@ -994,173 +994,193 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
       </section>
 
       {drawer ? (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[120]">
           <button
             aria-label="Закрыть публикацию"
             className="absolute inset-0"
-            style={{ background: "rgba(0,0,0,.42)", backdropFilter: "blur(8px)" }}
+            style={{ background: "rgba(0,0,0,.46)", backdropFilter: "blur(10px)" }}
             onClick={() => setDrawer(null)}
           />
 
-          <aside
-            className="absolute bottom-4 left-4 right-4 top-4 overflow-y-auto rounded-[28px] border sm:left-auto sm:w-[460px]"
-            style={{
-              borderColor: "rgba(255,255,255,.16)",
-              background: "radial-gradient(circle at 95% 0%, rgba(255,49,49,.14), transparent 34%), rgba(11,13,18,.97)",
-              boxShadow: "0 28px 90px rgba(0,0,0,.62)"
-            }}
-          >
-            <div
-              className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b px-4 py-4 backdrop-blur-xl"
-              style={{ borderColor: "var(--theme-border)", background: "rgba(11,13,18,.88)" }}
+          <div className="absolute inset-0 flex items-start justify-center px-4 pb-4 pt-24 sm:items-center sm:p-6">
+            <aside
+              className="max-h-[calc(100vh-7.5rem)] w-full max-w-[920px] overflow-y-auto rounded-[30px] border sm:max-h-[min(88vh,960px)]"
+              style={{
+                borderColor: "rgba(255,255,255,.16)",
+                background: "radial-gradient(circle at 95% 0%, rgba(255,49,49,.16), transparent 34%), rgba(11,13,18,.97)",
+                boxShadow: "0 32px 100px rgba(0,0,0,.68)"
+              }}
             >
-              <div className="min-w-0">
-                <div className="text-sm font-semibold" style={{ color: "var(--theme-text)" }}>
-                  Публикация
+              <div
+                className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b px-4 py-4 backdrop-blur-xl sm:px-5"
+                style={{ borderColor: "var(--theme-border)", background: "rgba(11,13,18,.9)" }}
+              >
+                <div className="min-w-0">
+                  <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: "rgba(246,241,233,.42)" }}>
+                    День недели
+                  </div>
+                  <div className="mt-1 text-sm font-semibold" style={{ color: "var(--theme-text)" }}>
+                    {drawer.weekLabel} · {drawer.dayLabel}
+                  </div>
                 </div>
-                <div className="text-xs" style={{ color: "var(--theme-text-muted)" }}>
-                  {drawer.weekLabel} · {drawer.dayLabel}
-                </div>
+                <Button variant="outline" onClick={() => setDrawer(null)}>
+                  Закрыть
+                </Button>
               </div>
-              <Button variant="outline" onClick={() => setDrawer(null)}>
-                Закрыть
-              </Button>
-            </div>
 
-            <div className="space-y-5 p-4">
-              <div className="mx-auto max-w-[250px]">
-                <div className={`${cardAspectClass(drawer.card)} overflow-hidden rounded-[22px] border`} style={{ borderColor: "rgba(255,255,255,.12)", boxShadow: "0 18px 46px rgba(0,0,0,.28)" }}>
-                  {resolveCardPreviewUrl(drawer.card.thumbnail_url) ? (
-                    <img src={resolveCardPreviewUrl(drawer.card.thumbnail_url)!} alt={drawer.card.title} className="h-full w-full object-cover" loading="eager" decoding="async" />
+              <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:gap-6">
+                <div className="space-y-4">
+                  <div
+                    className="overflow-hidden rounded-[24px] border"
+                    style={{ borderColor: "rgba(255,255,255,.12)", boxShadow: "0 20px 54px rgba(0,0,0,.32)" }}
+                  >
+                    {resolveCardPreviewUrl(drawer.card.thumbnail_url) ? (
+                      <img
+                        src={resolveCardPreviewUrl(drawer.card.thumbnail_url)!}
+                        alt={drawer.card.title}
+                        className={`${cardAspectClass(drawer.card)} h-full w-full object-cover`}
+                        loading="eager"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div
+                        className={`${cardAspectClass(drawer.card)} flex items-center justify-center px-4 text-center text-sm`}
+                        style={{ background: "var(--theme-image-bg)", color: "var(--theme-text-muted)" }}
+                      >
+                        Нет превью
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-start">
+                    <RoleBadge card={drawer.card} />
+                  </div>
+
+                  {normalizeValue(drawer.card.link) ? (
+                    <a
+                      href={drawer.card.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[16px] border px-4 text-[15px] font-semibold text-white transition hover:brightness-110"
+                      style={{
+                        borderColor: "rgba(255,255,255,.16)",
+                        background: "linear-gradient(90deg,var(--theme-accent-strong),color-mix(in srgb, var(--theme-accent) 86%, #d946ef 14%),var(--theme-accent))",
+                        boxShadow: "0 18px 50px var(--theme-accent-shadow)"
+                      }}
+                    >
+                      Открыть Dropbox
+                    </a>
                   ) : (
-                    <div className="flex h-full items-center justify-center px-4 text-center text-sm" style={{ background: "var(--theme-image-bg)", color: "var(--theme-text-muted)" }}>
-                      No preview
+                    <div
+                      className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[16px] border px-4 text-sm font-medium"
+                      style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.04)", color: "var(--theme-text-muted)" }}
+                    >
+                      Dropbox не указан
                     </div>
                   )}
                 </div>
-                <div className="mt-3 flex justify-start">
-                  <RoleBadge card={drawer.card} />
-                </div>
-              </div>
 
-              <div>
-                <h3 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.04em]" style={{ color: "var(--theme-text)" }}>
-                  {drawer.card.title}
-                </h3>
-              </div>
-
-              <div className="grid gap-3">
-                {[
-                  { label: "Дата", value: drawer.dayLabel },
-                  { label: "Проект", value: normalizeValue(drawer.card.project_name) || "Не указан" },
-                  { label: "Публикация", value: `${typeLabel(drawer.card)} · ${normalizeValue(drawer.card.title)}` },
-                  { label: "Формат", value: normalizeValue(drawer.card.aspect_ratio) || "Не указан" },
-                  { label: "Комната / зона", value: normalizeValue(drawer.card.room_zone) || "Не указана" }
-                ].map((field) => (
-                  <div
-                    key={field.label}
-                    className="rounded-[16px] border px-4 py-3"
-                    style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)" }}
-                  >
-                    <div className="mb-1 text-[10px] uppercase tracking-[0.1em]" style={{ color: "rgba(246,241,233,.42)" }}>
-                      {field.label}
-                    </div>
-                    <div className="text-sm font-medium leading-6" style={{ color: "rgba(246,241,233,.92)" }}>
-                      {field.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {normalizeValue(drawer.card.link) ? (
-                <a
-                  href={drawer.card.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[15px] border px-4 text-[15px] font-semibold text-white transition hover:brightness-110"
-                  style={{
-                    borderColor: "rgba(255,255,255,.16)",
-                    background: "linear-gradient(90deg,var(--theme-accent-strong),color-mix(in srgb, var(--theme-accent) 86%, #d946ef 14%),var(--theme-accent))",
-                    boxShadow: "0 18px 50px var(--theme-accent-shadow)"
-                  }}
-                >
-                  Открыть Dropbox
-                </a>
-              ) : (
-                <div
-                  className="inline-flex min-h-[50px] w-full items-center justify-center rounded-[15px] border px-4 text-sm font-medium"
-                  style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.04)", color: "var(--theme-text-muted)" }}
-                >
-                  Dropbox Missing
-                </div>
-              )}
-
-              {drawer.alternatives.length ? (
-                <section className="overflow-hidden rounded-[20px] border" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)" }}>
-                  <div className="px-4 pt-4">
-                    <h4 className="text-[11px] uppercase tracking-[0.12em]" style={{ color: "rgba(246,241,233,.66)" }}>
-                      Если не подходит — альтернативы
-                    </h4>
-                    <p className="mt-2 text-sm leading-6" style={{ color: "rgba(246,241,233,.42)" }}>
-                      Запасные варианты для этой публикации. Ниже сразу видно, что они меняют в составе недели.
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-[30px] font-semibold leading-[1.04] tracking-[-0.05em]" style={{ color: "var(--theme-text)" }}>
+                      {drawer.card.title}
+                    </h3>
+                    <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: "rgba(246,241,233,.66)" }}>
+                      Основной материал этого дня. Ниже сразу видно проект, комнату, формат и запасные варианты на случай замены.
                     </p>
                   </div>
 
-                  <div className="grid gap-3 p-3">
-                    {drawer.alternatives.map((alternative) => (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      { label: "Дата", value: drawer.dayLabel },
+                      { label: "Проект", value: normalizeValue(drawer.card.project_name) || "Не указан" },
+                      { label: "Публикация", value: `${typeLabel(drawer.card)} · ${normalizeValue(drawer.card.title)}` },
+                      { label: "Формат", value: normalizeValue(drawer.card.aspect_ratio) || "Не указан" },
+                      { label: "Комната / зона", value: normalizeValue(drawer.card.room_zone) || "Не указана" }
+                    ].map((field) => (
                       <div
-                        key={alternative.id}
-                        className="grid gap-3 rounded-[16px] border p-3 sm:grid-cols-[104px_minmax(0,1fr)]"
-                        style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.04)" }}
+                        key={field.label}
+                        className="rounded-[16px] border px-4 py-3"
+                        style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)" }}
                       >
-                        <MiniCover card={alternative} className="w-[104px]" compact />
-
-                        <div className="min-w-0 space-y-3">
-                          <div>
-                            <h5 className="text-base font-semibold leading-6 tracking-[-0.02em]" style={{ color: "var(--theme-text)" }}>
-                              {alternative.title}
-                            </h5>
-                          </div>
-
-                          <div
-                            className="rounded-[14px] border px-3 py-3 text-sm leading-6"
-                            style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)", color: "rgba(246,241,233,.82)" }}
-                          >
-                            <span className="mb-1 block text-[10px] uppercase tracking-[0.1em]" style={{ color: "rgba(246,241,233,.42)" }}>
-                              Связка
-                            </span>
-                            {`${typeLabel(alternative)} · ${normalizeValue(alternative.project_name) || "Без проекта"} · ${normalizeValue(alternative.room_zone) || "Без комнаты"} · ${normalizeValue(alternative.aspect_ratio) || "custom"}`}
-                          </div>
-
-                          <div
-                            className="rounded-[14px] border px-3 py-3 text-sm leading-6"
-                            style={{ borderColor: "rgba(85,216,121,.22)", background: "rgba(85,216,121,.08)", color: "rgba(246,241,233,.84)" }}
-                          >
-                            {buildAlternativeEffect(drawer.card, alternative)}
-                          </div>
-
-                          {normalizeValue(alternative.link) ? (
-                            <a
-                              href={alternative.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[14px] border px-4 text-sm font-semibold text-white transition hover:brightness-110"
-                              style={{
-                                borderColor: "rgba(255,255,255,.16)",
-                                background: "rgba(255,255,255,.045)"
-                              }}
-                            >
-                              Открыть Dropbox
-                            </a>
-                          ) : null}
+                        <div className="mb-1 text-[10px] uppercase tracking-[0.1em]" style={{ color: "rgba(246,241,233,.42)" }}>
+                          {field.label}
+                        </div>
+                        <div className="text-sm font-medium leading-6" style={{ color: "rgba(246,241,233,.92)" }}>
+                          {field.value}
                         </div>
                       </div>
                     ))}
                   </div>
-                </section>
-              ) : null}
-            </div>
-          </aside>
+
+                  {drawer.alternatives.length ? (
+                    <section className="overflow-hidden rounded-[22px] border" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)" }}>
+                      <div className="border-b px-4 py-4" style={{ borderColor: "var(--theme-border)" }}>
+                        <h4 className="text-[11px] uppercase tracking-[0.12em]" style={{ color: "rgba(246,241,233,.66)" }}>
+                          Если не подходит - альтернативы
+                        </h4>
+                        <p className="mt-2 text-sm leading-6" style={{ color: "rgba(246,241,233,.42)" }}>
+                          Запасные варианты для этой публикации. Под каждым видно, как именно замена повлияет на состав недели.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-3 p-3">
+                        {drawer.alternatives.map((alternative) => (
+                          <div
+                            key={alternative.id}
+                            className="grid gap-3 rounded-[18px] border p-3 sm:grid-cols-[120px_minmax(0,1fr)]"
+                            style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.04)" }}
+                          >
+                            <MiniCover card={alternative} className="w-[120px]" compact />
+
+                            <div className="min-w-0 space-y-3">
+                              <div>
+                                <h5 className="text-base font-semibold leading-6 tracking-[-0.02em]" style={{ color: "var(--theme-text)" }}>
+                                  {alternative.title}
+                                </h5>
+                              </div>
+
+                              <div
+                                className="rounded-[14px] border px-3 py-3 text-sm leading-6"
+                                style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)", color: "rgba(246,241,233,.82)" }}
+                              >
+                                <span className="mb-1 block text-[10px] uppercase tracking-[0.1em]" style={{ color: "rgba(246,241,233,.42)" }}>
+                                  Связка
+                                </span>
+                                {`${typeLabel(alternative)} · ${normalizeValue(alternative.project_name) || "Без проекта"} · ${normalizeValue(alternative.room_zone) || "Без комнаты"} · ${normalizeValue(alternative.aspect_ratio) || "custom"}`}
+                              </div>
+
+                              <div
+                                className="rounded-[14px] border px-3 py-3 text-sm leading-6"
+                                style={{ borderColor: "rgba(85,216,121,.22)", background: "rgba(85,216,121,.08)", color: "rgba(246,241,233,.84)" }}
+                              >
+                                {buildAlternativeEffect(drawer.card, alternative)}
+                              </div>
+
+                              {normalizeValue(alternative.link) ? (
+                                <a
+                                  href={alternative.link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[14px] border px-4 text-sm font-semibold text-white transition hover:brightness-110"
+                                  style={{
+                                    borderColor: "rgba(255,255,255,.16)",
+                                    background: "rgba(255,255,255,.045)"
+                                  }}
+                                >
+                                  Открыть Dropbox
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
       ) : null}
     </div>

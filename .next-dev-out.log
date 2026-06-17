@@ -12,3 +12,9 @@
  ○ Compiling /plan ...
  ✓ Compiled /plan in 928ms (710 modules)
  GET /plan 200 in 2310ms
+ GET /plan 200 in 808ms
+ ✓ Compiled in 797ms (262 modules)
+ ✓ Compiled in 204ms (262 modules)
+ ✓ Compiled in 294ms (262 modules)
+ ✓ Compiled in 167ms (262 modules)
+ ✓ Compiled in 182ms (262 modules)
