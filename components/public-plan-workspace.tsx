@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -77,8 +78,22 @@ function weekLabelRu(weekKey: PlannedWeek) {
   return `Неделя ${weekKey.replace("week_", "")}`;
 }
 
+function isProjectKey(value: string | null): value is ProjectKey {
+  return value === "main" || value === "mena";
+}
+
+function isWeekKey(value: string | null): value is PlannedWeek {
+  return WEEK_OPTIONS.some((week) => week.value === value);
+}
+
 function getWeekStartDay(weekKey: PlannedWeek) {
   return WEEK_OPTIONS.find((option) => option.value === weekKey)?.startDay || 1;
+}
+
+function monthParamValue(monthLabel: string) {
+  const date = parseMonthLabelToDate(monthLabel);
+  if (!date) return monthLabel.toLowerCase().replace(/\s+/g, "-");
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function weekRangeRu(monthLabel: string, weekKey: PlannedWeek) {
@@ -371,10 +386,16 @@ function RoleBadge({ card, compact = false }: { card: PlannerLibraryCard; compac
 }
 
 export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) {
-  const [projectKey, setProjectKey] = useState<ProjectKey>("main");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initialProjectKey = searchParams.get("project");
+  const [projectKey, setProjectKey] = useState<ProjectKey>(isProjectKey(initialProjectKey) ? initialProjectKey : "main");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [drawer, setDrawer] = useState<DrawerState | null>(null);
+  const [queryApplied, setQueryApplied] = useState(false);
+  const [copiedWeekKey, setCopiedWeekKey] = useState<PlannedWeek | null>(null);
 
   const groupedMonths = useMemo(() => {
     const monthMap = new Map<string, PlannerWeekSummary[]>();
@@ -405,6 +426,34 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
     if (!groupedMonths.length) return;
     setSelectedMonth((current) => (current && groupedMonths.some((month) => month.label === current) ? current : groupedMonths[0].label));
   }, [groupedMonths]);
+
+  useEffect(() => {
+    if (queryApplied) return;
+
+    const projectParam = searchParams.get("project");
+    if (isProjectKey(projectParam) && projectParam !== projectKey) {
+      setProjectKey(projectParam);
+      return;
+    }
+
+    if (!groupedMonths.length) {
+      setQueryApplied(true);
+      return;
+    }
+
+    const monthParam = searchParams.get("month");
+    const matchedMonth = groupedMonths.find((month) => monthParamValue(month.label) === monthParam) || null;
+    if (matchedMonth) {
+      setSelectedMonth(matchedMonth.label);
+    }
+
+    const weekParam = searchParams.get("week");
+    if (matchedMonth && isWeekKey(weekParam)) {
+      setViewMode(weekParam);
+    }
+
+    setQueryApplied(true);
+  }, [groupedMonths, projectKey, queryApplied, searchParams]);
 
   const activeMonth = useMemo(() => groupedMonths.find((month) => month.label === selectedMonth) || null, [groupedMonths, selectedMonth]);
 
@@ -453,6 +502,25 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
       setViewMode("month");
     }
   }, [activeMonth, viewMode, weekViews]);
+
+  useEffect(() => {
+    if (!queryApplied || !selectedMonth) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("project", projectKey);
+    params.set("month", monthParamValue(selectedMonth));
+
+    if (viewMode === "month") {
+      params.delete("week");
+    } else {
+      params.set("week", viewMode);
+    }
+
+    const nextQuery = params.toString();
+    if (nextQuery !== searchParams.toString()) {
+      router.replace(`${pathname}?${nextQuery}`, { scroll: false });
+    }
+  }, [pathname, projectKey, queryApplied, router, searchParams, selectedMonth, viewMode]);
 
   const selectedWeekView = useMemo(() => {
     if (viewMode === "month") return weekViews[0] || null;
@@ -508,6 +576,25 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
     });
   };
 
+  const copyWeekLink = async (weekKey: PlannedWeek) => {
+    if (typeof window === "undefined" || !selectedMonth) return;
+
+    const shareUrl = new URL(pathname, window.location.origin);
+    shareUrl.searchParams.set("project", projectKey);
+    shareUrl.searchParams.set("month", monthParamValue(selectedMonth));
+    shareUrl.searchParams.set("week", weekKey);
+
+    try {
+      await navigator.clipboard.writeText(shareUrl.toString());
+      setCopiedWeekKey(weekKey);
+      window.setTimeout(() => {
+        setCopiedWeekKey((current) => (current === weekKey ? null : current));
+      }, 2000);
+    } catch {
+      setCopiedWeekKey(null);
+    }
+  };
+
   if (!weeks.length || !activeMonth) return null;
 
   return (
@@ -544,7 +631,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                   {monthLabelRu(activeMonth.label)}
                 </span>
                 <span
-                  className="inline-flex rounded-full border px-3 py-2 text-[12px] font-semibold"
+                  className="hidden rounded-full border px-3 py-2 text-[12px] font-semibold"
                   style={{
                     borderColor: "rgba(255,255,255,.12)",
                     background: "rgba(255,255,255,.03)",
@@ -554,7 +641,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                   Баланс разнообразия, а не качества роликов
                 </span>
               </div>
-              <p className="mt-4 max-w-3xl text-[15px] leading-7 sm:text-[17px]" style={{ color: "rgba(246,241,233,.66)" }}>
+              <p className="hidden mt-4 max-w-3xl text-[15px] leading-7 sm:text-[17px]" style={{ color: "rgba(246,241,233,.66)" }}>
                 Founder-view для месяца: показывает, насколько неделя и месяц собраны по разнообразию контента, и сразу подсвечивает места, где структура начинает повторяться.
               </p>
             </div>
@@ -647,7 +734,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
           {viewMode === "month" ? (
             <div className="space-y-4">
               <section
-                className="grid gap-4 rounded-[28px] border p-4 lg:grid-cols-[188px_minmax(0,1fr)]"
+                className="hidden grid gap-4 rounded-[28px] border p-4 lg:grid-cols-[188px_minmax(0,1fr)]"
                 style={{
                   borderColor: "var(--theme-border)",
                   background: "radial-gradient(circle at 96% 6%, rgba(255,49,49,.13), transparent 31%), rgba(255,255,255,.038)"
@@ -879,7 +966,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                         {formatWeekStatus(week)}
                       </div>
                       {week.score != null ? (
-                        <div className="mt-4 flex items-end justify-between gap-3 text-sm" style={{ color: "rgba(246,241,233,.66)" }}>
+                        <div className="hidden mt-4 items-end justify-between gap-3 text-sm" style={{ color: "rgba(246,241,233,.66)" }}>
                           <span>Баланс</span>
                           <strong className="text-[24px] font-semibold leading-none tracking-[-0.06em]" style={{ color: "var(--theme-text)" }}>
                             {week.score}%
@@ -892,9 +979,9 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
               </div>
 
               <section className="rounded-[28px] border" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.038)" }}>
-                <div className="grid gap-4 border-b p-4 lg:grid-cols-[170px_minmax(0,1fr)]" style={{ borderColor: "var(--theme-border)" }}>
+                <div className="grid gap-4 border-b p-4" style={{ borderColor: "var(--theme-border)" }}>
                   <div
-                    className="grid min-h-[160px] place-items-center rounded-[22px] border text-center"
+                    className="hidden min-h-[160px] place-items-center rounded-[22px] border text-center"
                     style={{ borderColor: "var(--theme-border)", background: "rgba(0,0,0,.18)" }}
                   >
                     <div>
@@ -912,22 +999,33 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                       <h2 className="text-[32px] font-semibold leading-none tracking-[-0.05em]" style={{ color: "var(--theme-text)" }}>
                         {weekLabelRu(selectedWeekView.weekKey)} · {selectedWeekView.rangeLabel}
                       </h2>
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <div
+                          className="inline-flex rounded-full border px-3 py-2 text-xs font-semibold"
+                          style={{ borderColor: "rgba(255,255,255,.12)", background: "rgba(255,255,255,.04)", color: "rgba(246,241,233,.74)" }}
+                        >
+                          {formatWeekStatus(selectedWeekView)}
+                        </div>
+                        <Button variant="outline" onClick={() => void copyWeekLink(selectedWeekView.weekKey)}>
+                          {copiedWeekKey === selectedWeekView.weekKey ? "Link copied" : "Copy week link"}
+                        </Button>
+                      </div>
                       <div
-                        className="mt-4 inline-flex rounded-full border px-3 py-2 text-xs font-semibold"
+                        className="hidden mt-4 rounded-full border px-3 py-2 text-xs font-semibold"
                         style={{ borderColor: "rgba(255,255,255,.12)", background: "rgba(255,255,255,.04)", color: "rgba(246,241,233,.74)" }}
                       >
                         Этот процент отражает разнообразие недели, а не качество роликов.
                       </div>
                     </div>
 
-                    <p className="max-w-3xl text-[15px] leading-7" style={{ color: "rgba(246,241,233,.66)" }}>
+                    <p className="hidden max-w-3xl text-[15px] leading-7" style={{ color: "rgba(246,241,233,.66)" }}>
                       {selectedWeekView.postsCount
                         ? `Сейчас в неделе собрано ${selectedWeekView.postsCount} из 4 слотов. Ниже видно, что именно тянет баланс вниз и какие материалы стоят в основном составе недели.`
                         : "Для этой недели еще нет собранного плана. Как только появятся публикации, здесь сразу сложится живая недельная сводка."}
                     </p>
 
                     {selectedWeekView.issues.length ? (
-                      <div className="grid gap-2">
+                      <div className="hidden grid gap-2">
                         {selectedWeekView.issues.map((issue) => (
                           <div
                             key={issue}
