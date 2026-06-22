@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { ImagePreload } from "@/components/image-preload";
 import { parseMonthLabelToDate, plannerDayOrder } from "@/lib/plan/dates";
 import { type PlannerWeekSummary, type PlannerLibraryCard, type PlannerResolvedEntry } from "@/lib/supabase/planner-data";
@@ -673,24 +672,8 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
             </div>
           </div>
 
-          <div className="grid gap-4 rounded-[26px] border p-4 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.03)" }}>
-            <div className="inline-flex w-fit rounded-[18px] border p-[5px]" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.035)" }}>
-              <ProjectSegmentedToggle
-                value={projectKey}
-                onChange={(value) => {
-                  setProjectKey(value);
-                  setSelectedMonth("");
-                  setViewMode("month");
-                }}
-                className="border-0 bg-transparent p-0 shadow-none"
-                options={[
-                  { value: "main", label: "LA" },
-                  { value: "mena", label: "Mena" }
-                ]}
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-[minmax(220px,280px)_1fr] sm:items-center lg:min-w-[720px]">
+          <div className="grid gap-4 rounded-[26px] border p-4" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.03)" }}>
+            <div className="grid gap-3 sm:grid-cols-[minmax(220px,280px)_1fr] sm:items-center">
               <Select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
                 {groupedMonths.map((month) => (
                   <option key={month.label} value={month.label}>
