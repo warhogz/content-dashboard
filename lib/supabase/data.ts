@@ -119,7 +119,7 @@ function normalizeCards(cards: ContentCard[] | null | undefined) {
   }));
 }
 
-function normalizePlannerWeeks(rows: Array<Record<string, unknown>> | null | undefined) {
+function normalizePlannerWeeks(rows: Array<Record<string, unknown>> | null | undefined): PlannerWeekLite[] {
   return (rows ?? []).map((row) => ({
     id: String(row.id || ""),
     month_label: String(row.month_label || ""),
@@ -127,7 +127,7 @@ function normalizePlannerWeeks(rows: Array<Record<string, unknown>> | null | und
   }));
 }
 
-function normalizePlannerEntries(rows: Array<Record<string, unknown>> | null | undefined) {
+function normalizePlannerEntries(rows: Array<Record<string, unknown>> | null | undefined): PlannerEntryLite[] {
   return (rows ?? []).map((row) => ({
     card_id: String(row.card_id || ""),
     plan_week_id: String(row.plan_week_id || ""),
