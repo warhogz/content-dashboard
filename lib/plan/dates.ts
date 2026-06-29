@@ -69,3 +69,49 @@ export function dayHeading(monthLabel: string, weekKey: PlannedWeek, dayKey: Pla
 
   return `${dayKey.toUpperCase()} · ${monthShort} ${numericDay}`;
 }
+
+export function plannedDayDate(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
+  const date = parseMonthLabelToDate(monthLabel);
+  if (!date) return null;
+
+  const startDay = {
+    week_1: 1,
+    week_2: 8,
+    week_3: 15,
+    week_4: 22,
+    week_5: 29
+  }[weekKey];
+  const numericDay = startDay + plannerDayOrder.indexOf(dayKey);
+  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+
+  if (numericDay < 1 || numericDay > lastDayOfMonth) return null;
+
+  return new Date(date.getFullYear(), date.getMonth(), numericDay);
+}
+
+export function plannedDayIso(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
+  const date = plannedDayDate(monthLabel, weekKey, dayKey);
+  if (!date) return null;
+
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export function formatPlannedDateRuShort(value: string | null | undefined) {
+  if (!value) return null;
+
+  const [yearText, monthText, dayText] = value.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return value;
+  }
+
+  return new Date(year, month - 1, day).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "short"
+  });
+}

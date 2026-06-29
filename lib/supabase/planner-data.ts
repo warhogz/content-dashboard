@@ -25,6 +25,8 @@ export type PlannerLibraryCard = Pick<
   | "aspect_ratio"
   | "height_px"
   | "crop_mode"
+  | "is_archived"
+  | "archived_at"
   | "project_name"
   | "room_zone"
   | "content_category"
@@ -60,6 +62,8 @@ const PLANNER_CARD_SELECT = [
   "aspect_ratio",
   "height_px",
   "crop_mode",
+  "is_archived",
+  "archived_at",
   "project_name",
   "room_zone",
   "content_category",
@@ -85,6 +89,8 @@ function normalizePlannerCard(card: Record<string, unknown>): PlannerLibraryCard
     aspect_ratio: (card.aspect_ratio as ContentCard["aspect_ratio"]) || "custom",
     height_px: typeof card.height_px === "number" ? card.height_px : Number(card.height_px || 320),
     crop_mode: (card.crop_mode as ContentCard["crop_mode"]) || "cover",
+    is_archived: Boolean(card.is_archived),
+    archived_at: typeof card.archived_at === "string" ? card.archived_at : null,
     project_name: typeof card.project_name === "string" ? card.project_name : null,
     room_zone: typeof card.room_zone === "string" ? card.room_zone : null,
     content_category: typeof card.content_category === "string" ? card.content_category : null,

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ImagePreview } from "@/components/image-preview";
 import { StatusBadge } from "@/components/status-badge";
 import { TypeBadge } from "@/components/type-badge";
+import { formatPlannedDateRuShort } from "@/lib/plan/dates";
 import { ContentCard } from "@/lib/types";
 
 export function CardItem({
@@ -25,6 +26,7 @@ export function CardItem({
   imagePriority?: "high" | "auto" | "low";
 }) {
   const previewHeight = compact ? Math.min(item.height_px, 210) : Math.min(item.height_px, 340);
+  const plannedDateLabel = !item.is_archived ? formatPlannedDateRuShort(item.scheduled_for_date) : null;
 
   return (
     <Card
@@ -56,6 +58,17 @@ export function CardItem({
               <div className="flex flex-wrap items-center gap-2">
                 <TypeBadge type={item.type} />
                 <StatusBadge status={item.status} />
+                {plannedDateLabel ? (
+                  <Badge
+                    style={{
+                      background: "color-mix(in srgb, #55d879 12%, transparent)",
+                      color: "var(--theme-text)",
+                      borderColor: "color-mix(in srgb, #55d879 36%, var(--theme-border))"
+                    }}
+                  >
+                    {`План: ${plannedDateLabel}`}
+                  </Badge>
+                ) : null}
                 {item.project_key === "mena" ? (
                   <Badge style={{ background: "color-mix(in srgb, var(--theme-accent) 14%, transparent)", color: "var(--theme-text)" }}>
                     Mena

@@ -95,6 +95,36 @@ function monthParamValue(monthLabel: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function planDateForDay(monthLabel: string, weekKey: PlannedWeek, dayOffset = 0) {
+  const date = parseMonthLabelToDate(monthLabel);
+  if (!date) return null;
+
+  return new Date(date.getFullYear(), date.getMonth(), getWeekStartDay(weekKey) + dayOffset);
+}
+
+function shortMonthDayRu(date: Date) {
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+}
+
+function formatWeekRangeRu(monthLabel: string, weekKey: PlannedWeek) {
+  const startDate = planDateForDay(monthLabel, weekKey, 0);
+  const endDate = planDateForDay(monthLabel, weekKey, 3);
+  if (!startDate || !endDate) return "Пн-Чт";
+
+  if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
+    const monthShort = startDate.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "");
+    return `${startDate.getDate()}-${endDate.getDate()} ${monthShort}`;
+  }
+
+  return `${shortMonthDayRu(startDate)} - ${shortMonthDayRu(endDate)}`;
+}
+
+function formatDayLabelRu(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
+  const date = planDateForDay(monthLabel, weekKey, plannerDayOrder.indexOf(dayKey));
+  if (!date) return DAY_LABELS[dayKey].long;
+  return `${DAY_LABELS[dayKey].long} · ${shortMonthDayRu(date)}`;
+}
+
 function weekRangeRu(monthLabel: string, weekKey: PlannedWeek) {
   const date = parseMonthLabelToDate(monthLabel);
   if (!date) return "Пн–Чт";
@@ -384,6 +414,22 @@ function RoleBadge({ card, compact = false }: { card: PlannerLibraryCard; compac
   );
 }
 
+function PublishedBadge({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={`inline-flex w-fit items-center justify-center rounded-full border font-semibold ${compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-xs"}`}
+      style={{
+        borderColor: "rgba(85,216,121,.36)",
+        background: "rgba(85,216,121,.12)",
+        color: "#c8ffd7",
+        boxShadow: "0 0 18px rgba(85,216,121,.18)"
+      }}
+    >
+      Опубликовано
+    </span>
+  );
+}
+
 export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -466,7 +512,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
         return {
           id: `${activeMonth.label}-${option.value}`,
           weekKey: option.value,
-          rangeLabel: weekRangeRu(activeMonth.label, option.value),
+          rangeLabel: formatWeekRangeRu(activeMonth.label, option.value),
           postsCount: 0,
           score: null,
           scoreLabel: "Пусто",
@@ -481,7 +527,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
       return {
         id: week.id,
         weekKey: week.week_key,
-        rangeLabel: weekRangeRu(week.month_label, week.week_key),
+        rangeLabel: formatWeekRangeRu(week.month_label, week.week_key),
         postsCount: week.postsCount,
         score: week.score.total,
         scoreLabel: week.score.label,
@@ -569,7 +615,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
 
     setDrawer({
       weekLabel: weekLabelRu(week.weekKey),
-      dayLabel: dayLabelRu(activeMonth?.label || "", week.weekKey, day),
+      dayLabel: formatDayLabelRu(activeMonth?.label || "", week.weekKey, day),
       card: primary,
       alternatives
     });
@@ -673,7 +719,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
           </div>
 
           <div className="grid gap-4 rounded-[26px] border p-4" style={{ borderColor: "var(--theme-border)", background: "rgba(255,255,255,.03)" }}>
-            <div className="grid gap-3 sm:grid-cols-[minmax(220px,280px)_1fr] sm:items-center">
+            <div className="sm:max-w-[280px]">
               <Select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
                 {groupedMonths.map((month) => (
                   <option key={month.label} value={month.label}>
@@ -682,7 +728,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                 ))}
               </Select>
 
-              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="hidden gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <button
                   type="button"
                   onClick={() => setViewMode("month")}
@@ -876,7 +922,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                                 <strong className="text-[13px] uppercase tracking-[0.08em]" style={{ color: "var(--theme-text)" }}>
                                   {DAY_LABELS[day].short}
                                 </strong>
-                                <span>{dayLabelRu(activeMonth.label, week.weekKey, day).split("· ")[1]}</span>
+                                <span>{formatDayLabelRu(activeMonth.label, week.weekKey, day).split("· ")[1]}</span>
                               </div>
                               <span
                                 className="inline-flex w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold"
@@ -884,6 +930,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                               >
                                 {typeLabel(card)}
                               </span>
+                              {card.is_archived ? <PublishedBadge compact /> : null}
                               <div className="space-y-1">
                                 <div className="text-[10px] uppercase tracking-[0.1em]" style={{ color: "rgba(246,241,233,.42)" }}>
                                   Проект
@@ -918,6 +965,32 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
           ) : selectedWeekView ? (
             <div className="space-y-4">
               <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("month")}
+                  className="min-w-[226px] rounded-[22px] border p-4 text-left"
+                  style={{
+                    borderColor: "var(--theme-border)",
+                    background: "radial-gradient(circle at 88% 12%, rgba(255,49,49,.08), transparent 31%), rgba(255,255,255,.035)"
+                  }}
+                >
+                  <h3 className="text-[19px] font-semibold tracking-[-0.02em]" style={{ color: "var(--theme-text)" }}>
+                    Месяц
+                  </h3>
+                  <div className="mt-2 text-sm" style={{ color: "rgba(246,241,233,.66)" }}>
+                    {monthLabelRu(activeMonth.label)}
+                  </div>
+                  <div
+                    className="mt-4 inline-flex rounded-full border px-3 py-2 text-xs font-semibold"
+                    style={{
+                      color: "rgba(246,241,233,.74)",
+                      background: "rgba(255,255,255,.04)",
+                      borderColor: "rgba(255,255,255,.12)"
+                    }}
+                  >
+                    Обзор месяца
+                  </div>
+                </button>
                 {weekViews.map((week) => {
                   const active = week.weekKey === viewMode;
                   const statusTone = weekStatusTone(week);
@@ -1048,8 +1121,9 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                             <MiniCover card={card} className="rounded-[12px]" compact />
                             <div className="grid min-w-0 gap-2">
                               <RoleBadge card={card} compact />
+                              {card.is_archived ? <PublishedBadge compact /> : null}
                               <div className="text-[11px] uppercase tracking-[0.08em]" style={{ color: "rgba(246,241,233,.42)" }}>
-                                {DAY_LABELS[day].short} · {dayLabelRu(activeMonth.label, selectedWeekView.weekKey, day).split("· ")[1]}
+                                {DAY_LABELS[day].short} · {formatDayLabelRu(activeMonth.label, selectedWeekView.weekKey, day).split("· ")[1]}
                               </div>
                               <div className="text-sm font-semibold leading-6" style={{ color: "var(--theme-text)" }}>
                                 {normalizeValue(card.project_name) || card.title}
@@ -1134,7 +1208,10 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
                   </div>
 
                   <div className="flex justify-start">
-                    <RoleBadge card={drawer.card} />
+                    <div className="flex flex-wrap gap-2">
+                      <RoleBadge card={drawer.card} />
+                      {drawer.card.is_archived ? <PublishedBadge /> : null}
+                    </div>
                   </div>
 
                   {normalizeValue(drawer.card.link) ? (
@@ -1216,6 +1293,10 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
 
                             <div className="min-w-0 space-y-3">
                               <div>
+                                <div className="mb-2 flex flex-wrap gap-2">
+                                  <RoleBadge card={alternative} compact />
+                                  {alternative.is_archived ? <PublishedBadge compact /> : null}
+                                </div>
                                 <h5 className="text-base font-semibold leading-6 tracking-[-0.02em]" style={{ color: "var(--theme-text)" }}>
                                   {alternative.title}
                                 </h5>

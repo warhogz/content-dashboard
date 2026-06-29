@@ -65,6 +65,7 @@ export interface ContentCard {
   planned_month?: string | null;
   planned_week?: PlannedWeek | null;
   planned_day?: PlannedDay | null;
+  scheduled_for_date?: string | null;
   is_main_pick?: boolean;
   alternative_for?: string | null;
   plan_priority?: number | null;

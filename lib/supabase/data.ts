@@ -1,7 +1,20 @@
 import { createSupabaseServerClient, hasSupabase } from "@/lib/supabase/server";
 import { getPlanMetadataCatalogs } from "@/lib/supabase/plan-catalogs";
+import { plannedDayIso } from "@/lib/plan/dates";
 import { getMockData } from "@/lib/mock-data";
-import { ARCHIVE_STATUS_SLUG, BloggerMaterialType, BloggerRow, BloggerStatusColor, CardTypeRow, ContentCard, PlanMetadataCatalogs, ProjectKey, StatusRow } from "@/lib/types";
+import {
+  ARCHIVE_STATUS_SLUG,
+  BloggerMaterialType,
+  BloggerRow,
+  BloggerStatusColor,
+  CardTypeRow,
+  ContentCard,
+  PlanMetadataCatalogs,
+  PlannedDay,
+  PlannedWeek,
+  ProjectKey,
+  StatusRow
+} from "@/lib/types";
 
 const QUERY_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 3500 : 8000;
 const BASE_CARD_SELECT = [
@@ -26,6 +39,20 @@ const BASE_CARD_SELECT = [
   "created_at",
   "updated_at"
 ].join(", ");
+
+type PlannerWeekLite = {
+  id: string;
+  month_label: string;
+  week_key: PlannedWeek;
+};
+
+type PlannerEntryLite = {
+  card_id: string;
+  plan_week_id: string;
+  day_key: PlannedDay;
+  role: "main" | "alternative";
+  position: number;
+};
 
 function formatQueryError(error: unknown) {
   if (error instanceof Error) {
@@ -92,6 +119,72 @@ function normalizeCards(cards: ContentCard[] | null | undefined) {
   }));
 }
 
+function normalizePlannerWeeks(rows: Array<Record<string, unknown>> | null | undefined) {
+  return (rows ?? []).map((row) => ({
+    id: String(row.id || ""),
+    month_label: String(row.month_label || ""),
+    week_key: (row.week_key as PlannedWeek) || "week_1"
+  }));
+}
+
+function normalizePlannerEntries(rows: Array<Record<string, unknown>> | null | undefined) {
+  return (rows ?? []).map((row) => ({
+    card_id: String(row.card_id || ""),
+    plan_week_id: String(row.plan_week_id || ""),
+    day_key: (row.day_key as PlannedDay) || "monday",
+    role: row.role === "alternative" ? "alternative" : "main",
+    position: typeof row.position === "number" ? row.position : Number(row.position || 0)
+  }));
+}
+
+function buildScheduledDateMap(weeks: PlannerWeekLite[], entries: PlannerEntryLite[]) {
+  const weeksById = new Map(weeks.map((week) => [week.id, week]));
+  const bestByCardId = new Map<string, { scheduledFor: string; role: "main" | "alternative"; position: number }>();
+
+  for (const entry of entries) {
+    if (entry.role !== "main") continue;
+
+    const week = weeksById.get(entry.plan_week_id);
+    if (!week || !entry.card_id) continue;
+
+    const scheduledFor = plannedDayIso(week.month_label, week.week_key, entry.day_key);
+    if (!scheduledFor) continue;
+
+    const current = bestByCardId.get(entry.card_id);
+    if (!current) {
+      bestByCardId.set(entry.card_id, {
+        scheduledFor,
+        role: entry.role,
+        position: entry.position
+      });
+      continue;
+    }
+
+    const currentPriority = `${current.role === "main" ? "0" : "1"}-${current.position}-${current.scheduledFor}`;
+    const nextPriority = `${entry.role === "main" ? "0" : "1"}-${entry.position}-${scheduledFor}`;
+
+    if (nextPriority < currentPriority) {
+      bestByCardId.set(entry.card_id, {
+        scheduledFor,
+        role: entry.role,
+        position: entry.position
+      });
+    }
+  }
+
+  return new Map(Array.from(bestByCardId.entries()).map(([cardId, value]) => [cardId, value.scheduledFor]));
+}
+
+function attachScheduledDates(cards: ContentCard[] | null | undefined, weeks: PlannerWeekLite[], entries: PlannerEntryLite[]) {
+  if (!cards) return null;
+
+  const scheduledDateMap = buildScheduledDateMap(weeks, entries);
+  return cards.map((card) => ({
+    ...card,
+    scheduled_for_date: scheduledDateMap.get(card.id) || null
+  }));
+}
+
 function normalizeStatuses(statuses: StatusRow[] | null | undefined) {
   if (!statuses) return null;
   return statuses.filter((status) => status.slug !== ARCHIVE_STATUS_SLUG);
@@ -134,7 +227,7 @@ export async function getDashboardData() {
 
   const fallback = getMockData();
 
-  const [statuses, types, cards] = await Promise.all([
+  const [statuses, types, cards, planWeeks, planEntries] = await Promise.all([
     safeQuery<StatusRow[]>(
       async (signal) =>
         await supabase
@@ -165,13 +258,33 @@ export async function getDashboardData() {
           .order("sort_order")
           .abortSignal(signal),
       "dashboard-cards"
+    ),
+    safeQuery<Array<Record<string, unknown>>>(
+      async (signal) =>
+        await supabase
+          .from("plan_weeks")
+          .select("id, month_label, week_key")
+          .abortSignal(signal),
+      "dashboard-plan-weeks"
+    ),
+    safeQuery<Array<Record<string, unknown>>>(
+      async (signal) =>
+        await supabase
+          .from("plan_entries")
+          .select("card_id, plan_week_id, day_key, role, position")
+          .abortSignal(signal),
+      "dashboard-plan-entries"
     )
   ]);
+
+  const normalizedWeeks = normalizePlannerWeeks(planWeeks);
+  const normalizedEntries = normalizePlannerEntries(planEntries);
+  const normalizedCards = normalizeCards(cards);
 
   return {
     statuses: normalizeStatuses(statuses) ?? fallback.statuses,
     types: types ?? fallback.types,
-    cards: normalizeCards(cards) ?? fallback.cards
+    cards: attachScheduledDates(normalizedCards, normalizedWeeks, normalizedEntries) ?? fallback.cards
   };
 }
 
@@ -195,7 +308,7 @@ export async function getAdminData() {
 
   const fallback = getMockData();
 
-  const [statuses, types, cards, catalogs] = await Promise.all([
+  const [statuses, types, cards, catalogs, planWeeks, planEntries] = await Promise.all([
     safeQuery<StatusRow[]>(
       async (signal) =>
         await supabase
@@ -225,13 +338,33 @@ export async function getAdminData() {
           .abortSignal(signal),
       "admin-cards"
     ),
-    getPlanMetadataCatalogs()
+    getPlanMetadataCatalogs(),
+    safeQuery<Array<Record<string, unknown>>>(
+      async (signal) =>
+        await supabase
+          .from("plan_weeks")
+          .select("id, month_label, week_key")
+          .abortSignal(signal),
+      "admin-plan-weeks"
+    ),
+    safeQuery<Array<Record<string, unknown>>>(
+      async (signal) =>
+        await supabase
+          .from("plan_entries")
+          .select("card_id, plan_week_id, day_key, role, position")
+          .abortSignal(signal),
+      "admin-plan-entries"
+    )
   ]);
+
+  const normalizedWeeks = normalizePlannerWeeks(planWeeks);
+  const normalizedEntries = normalizePlannerEntries(planEntries);
+  const normalizedCards = normalizeCards(cards);
 
   return {
     statuses: normalizeStatuses(statuses) ?? fallback.statuses,
     types: types ?? fallback.types,
-    cards: normalizeCards(cards) ?? fallback.cards,
+    cards: attachScheduledDates(normalizedCards, normalizedWeeks, normalizedEntries) ?? fallback.cards,
     catalogs: (catalogs as PlanMetadataCatalogs) ?? { projects: [], rooms: [], categories: [] }
   };
 }
