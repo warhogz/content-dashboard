@@ -82,9 +82,7 @@ export function plannedDayDate(monthLabel: string, weekKey: PlannedWeek, dayKey:
     week_5: 29
   }[weekKey];
   const numericDay = startDay + plannerDayOrder.indexOf(dayKey);
-  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-
-  if (numericDay < 1 || numericDay > lastDayOfMonth) return null;
+  if (numericDay < 1) return null;
 
   return new Date(date.getFullYear(), date.getMonth(), numericDay);
 }
