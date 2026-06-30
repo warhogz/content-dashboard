@@ -115,3 +115,16 @@ export function formatPlannedDateRuShort(value: string | null | undefined) {
     month: "short"
   });
 }
+
+function localTodayIso() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, "0");
+  const day = `${now.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function isPlannedDateActive(value: string | null | undefined) {
+  if (!value) return false;
+  return value >= localTodayIso();
+}

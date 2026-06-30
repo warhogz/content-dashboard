@@ -139,7 +139,10 @@ function normalizePlannerEntries(rows: Array<Record<string, unknown>> | null | u
 
 function buildScheduledDateMap(weeks: PlannerWeekLite[], entries: PlannerEntryLite[]) {
   const weeksById = new Map(weeks.map((week) => [week.id, week]));
-  const bestByCardId = new Map<string, { scheduledFor: string; role: "main" | "alternative"; position: number }>();
+  const upcomingByCardId = new Map<string, string>();
+  const fallbackByCardId = new Map<string, string>();
+  const today = new Date();
+  const todayIso = `${today.getFullYear()}-${`${today.getMonth() + 1}`.padStart(2, "0")}-${`${today.getDate()}`.padStart(2, "0")}`;
 
   for (const entry of entries) {
     if (entry.role !== "main") continue;
@@ -150,29 +153,26 @@ function buildScheduledDateMap(weeks: PlannerWeekLite[], entries: PlannerEntryLi
     const scheduledFor = plannedDayIso(week.month_label, week.week_key, entry.day_key);
     if (!scheduledFor) continue;
 
-    const current = bestByCardId.get(entry.card_id);
-    if (!current) {
-      bestByCardId.set(entry.card_id, {
-        scheduledFor,
-        role: entry.role,
-        position: entry.position
-      });
+    if (scheduledFor >= todayIso) {
+      const currentUpcoming = upcomingByCardId.get(entry.card_id);
+      if (!currentUpcoming || scheduledFor < currentUpcoming) {
+        upcomingByCardId.set(entry.card_id, scheduledFor);
+      }
       continue;
     }
 
-    const currentPriority = `${current.role === "main" ? "0" : "1"}-${current.position}-${current.scheduledFor}`;
-    const nextPriority = `${entry.role === "main" ? "0" : "1"}-${entry.position}-${scheduledFor}`;
-
-    if (nextPriority < currentPriority) {
-      bestByCardId.set(entry.card_id, {
-        scheduledFor,
-        role: entry.role,
-        position: entry.position
-      });
+    const currentFallback = fallbackByCardId.get(entry.card_id);
+    if (!currentFallback || scheduledFor > currentFallback) {
+      fallbackByCardId.set(entry.card_id, scheduledFor);
     }
   }
 
-  return new Map(Array.from(bestByCardId.entries()).map(([cardId, value]) => [cardId, value.scheduledFor]));
+  return new Map(
+    Array.from(new Set([...upcomingByCardId.keys(), ...fallbackByCardId.keys()])).map((cardId) => [
+      cardId,
+      upcomingByCardId.get(cardId) || fallbackByCardId.get(cardId) || null
+    ])
+  );
 }
 
 function attachScheduledDates(cards: ContentCard[] | null | undefined, weeks: PlannerWeekLite[], entries: PlannerEntryLite[]) {

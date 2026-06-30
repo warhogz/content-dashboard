@@ -762,6 +762,73 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
 
           {viewMode === "month" ? (
             <div className="space-y-4">
+              <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("month")}
+                  className="min-w-[226px] rounded-[22px] border p-4 text-left"
+                  style={{
+                    borderColor: "rgba(255,49,49,.9)",
+                    background: "radial-gradient(circle at 88% 12%, rgba(255,49,49,.18), transparent 32%), rgba(255,49,49,.06)",
+                    boxShadow: "0 0 0 1px rgba(255,49,49,.18) inset"
+                  }}
+                >
+                  <h3 className="text-[19px] font-semibold tracking-[-0.02em]" style={{ color: "var(--theme-text)" }}>
+                    Месяц
+                  </h3>
+                  <div className="mt-2 text-sm" style={{ color: "rgba(246,241,233,.66)" }}>
+                    {monthLabelRu(activeMonth.label)}
+                  </div>
+                  <div
+                    className="mt-4 inline-flex rounded-full border px-3 py-2 text-xs font-semibold"
+                    style={{
+                      color: "rgba(246,241,233,.74)",
+                      background: "rgba(255,255,255,.04)",
+                      borderColor: "rgba(255,255,255,.12)"
+                    }}
+                  >
+                    Обзор месяца
+                  </div>
+                </button>
+                {weekViews.map((week) => {
+                  const statusTone = weekStatusTone(week);
+
+                  return (
+                    <button
+                      key={week.id}
+                      type="button"
+                      onClick={() => setViewMode(week.weekKey)}
+                      className="min-w-[226px] rounded-[22px] border p-4 text-left"
+                      style={{
+                        borderColor: "var(--theme-border)",
+                        background: "radial-gradient(circle at 88% 12%, rgba(255,49,49,.08), transparent 31%), rgba(255,255,255,.035)"
+                      }}
+                    >
+                      <h3 className="text-[19px] font-semibold tracking-[-0.02em]" style={{ color: "var(--theme-text)" }}>
+                        {weekLabelRu(week.weekKey)}
+                      </h3>
+                      <div className="mt-2 text-sm" style={{ color: "rgba(246,241,233,.66)" }}>
+                        {week.rangeLabel}
+                      </div>
+                      <div
+                        className="mt-4 inline-flex rounded-full border px-3 py-2 text-xs font-semibold"
+                        style={{ color: statusTone.color, background: statusTone.background, borderColor: statusTone.border }}
+                      >
+                        {formatWeekStatus(week)}
+                      </div>
+                      {week.score != null ? (
+                        <div className="hidden mt-4 items-end justify-between gap-3 text-sm" style={{ color: "rgba(246,241,233,.66)" }}>
+                          <span>Баланс</span>
+                          <strong className="text-[24px] font-semibold leading-none tracking-[-0.06em]" style={{ color: "var(--theme-text)" }}>
+                            {week.score}%
+                          </strong>
+                        </div>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
               <section
                 className="hidden grid gap-4 rounded-[28px] border p-4 lg:grid-cols-[188px_minmax(0,1fr)]"
                 style={{

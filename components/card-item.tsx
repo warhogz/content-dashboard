@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ImagePreview } from "@/components/image-preview";
 import { StatusBadge } from "@/components/status-badge";
 import { TypeBadge } from "@/components/type-badge";
-import { formatPlannedDateRuShort } from "@/lib/plan/dates";
+import { formatPlannedDateRuShort, isPlannedDateActive } from "@/lib/plan/dates";
 import { ContentCard } from "@/lib/types";
 
 export function CardItem({
@@ -26,7 +26,7 @@ export function CardItem({
   imagePriority?: "high" | "auto" | "low";
 }) {
   const previewHeight = compact ? Math.min(item.height_px, 210) : Math.min(item.height_px, 340);
-  const plannedDateLabel = !item.is_archived ? formatPlannedDateRuShort(item.scheduled_for_date) : null;
+  const plannedDateLabel = isPlannedDateActive(item.scheduled_for_date) ? formatPlannedDateRuShort(item.scheduled_for_date) : null;
 
   return (
     <Card

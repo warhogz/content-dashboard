@@ -1,4 +1,4 @@
-create table if not exists public.plan_weeks (
+`create table if not exists public.plan_weeks (
   id uuid primary key default gen_random_uuid(),
   project_key text not null default 'main'
     check (project_key in ('main', 'mena')),
