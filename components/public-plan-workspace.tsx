@@ -6,7 +6,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { ImagePreload } from "@/components/image-preload";
-import { parseMonthLabelToDate, plannerDayOrder } from "@/lib/plan/dates";
+import { isPlanWeekInMonth, parseMonthLabelToDate, plannedDayDate, plannerDayOrder } from "@/lib/plan/dates";
 import { type PlannerWeekSummary, type PlannerLibraryCard, type PlannerResolvedEntry } from "@/lib/supabase/planner-data";
 import { PlannedDay, PlannedWeek, ProjectKey } from "@/lib/types";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
@@ -34,12 +34,12 @@ type DrawerState = {
   alternatives: PlannerLibraryCard[];
 };
 
-const WEEK_OPTIONS: Array<{ value: PlannedWeek; label: string; startDay: number }> = [
-  { value: "week_1", label: "Week 1", startDay: 1 },
-  { value: "week_2", label: "Week 2", startDay: 8 },
-  { value: "week_3", label: "Week 3", startDay: 15 },
-  { value: "week_4", label: "Week 4", startDay: 22 },
-  { value: "week_5", label: "Week 5", startDay: 29 }
+const WEEK_OPTIONS: Array<{ value: PlannedWeek; label: string }> = [
+  { value: "week_1", label: "Week 1" },
+  { value: "week_2", label: "Week 2" },
+  { value: "week_3", label: "Week 3" },
+  { value: "week_4", label: "Week 4" },
+  { value: "week_5", label: "Week 5" }
 ];
 
 const DAY_LABELS: Record<PlannedDay, { short: string; long: string }> = {
@@ -85,10 +85,6 @@ function isWeekKey(value: string | null): value is PlannedWeek {
   return WEEK_OPTIONS.some((week) => week.value === value);
 }
 
-function getWeekStartDay(weekKey: PlannedWeek) {
-  return WEEK_OPTIONS.find((option) => option.value === weekKey)?.startDay || 1;
-}
-
 function monthParamValue(monthLabel: string) {
   const date = parseMonthLabelToDate(monthLabel);
   if (!date) return monthLabel.toLowerCase().replace(/\s+/g, "-");
@@ -96,12 +92,8 @@ function monthParamValue(monthLabel: string) {
 }
 
 function planDateForDay(monthLabel: string, weekKey: PlannedWeek, dayOffset = 0) {
-  const date = parseMonthLabelToDate(monthLabel);
-  if (!date) return null;
-
-  return new Date(date.getFullYear(), date.getMonth(), getWeekStartDay(weekKey) + dayOffset);
+  return plannedDayDate(monthLabel, weekKey, plannerDayOrder[dayOffset] || "monday");
 }
-
 function shortMonthDayRu(date: Date) {
   return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
 }
@@ -112,8 +104,7 @@ function formatWeekRangeRu(monthLabel: string, weekKey: PlannedWeek) {
   if (!startDate || !endDate) return "Пн-Чт";
 
   if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
-    const monthShort = startDate.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "");
-    return `${startDate.getDate()}-${endDate.getDate()} ${monthShort}`;
+    return `${startDate.getDate()}–${shortMonthDayRu(endDate)}`;
   }
 
   return `${shortMonthDayRu(startDate)} - ${shortMonthDayRu(endDate)}`;
@@ -123,29 +114,6 @@ function formatDayLabelRu(monthLabel: string, weekKey: PlannedWeek, dayKey: Plan
   const date = planDateForDay(monthLabel, weekKey, plannerDayOrder.indexOf(dayKey));
   if (!date) return DAY_LABELS[dayKey].long;
   return `${DAY_LABELS[dayKey].long} · ${shortMonthDayRu(date)}`;
-}
-
-function weekRangeRu(monthLabel: string, weekKey: PlannedWeek) {
-  const date = parseMonthLabelToDate(monthLabel);
-  if (!date) return "Пн–Чт";
-
-  const startDay = getWeekStartDay(weekKey);
-  const endDay = Math.min(startDay + 3, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate());
-  const monthShort = monthShortRu(monthLabel);
-
-  if (weekKey === "week_5") {
-    const endDate = new Date(date.getFullYear(), date.getMonth(), endDay);
-    const endMonthShort = endDate.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "");
-    return `${startDay} ${monthShort} – ${endDay} ${endMonthShort}`;
-  }
-
-  return `${startDay}–${endDay} ${monthShort}`;
-}
-
-function dayLabelRu(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
-  const startDay = getWeekStartDay(weekKey);
-  const numericDay = startDay + plannerDayOrder.indexOf(dayKey);
-  return `${DAY_LABELS[dayKey].long} · ${numericDay} ${monthShortRu(monthLabel)}`;
 }
 
 function typeLabel(card: PlannerLibraryCard | null | undefined) {
@@ -458,7 +426,7 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
     return Array.from(monthMap.entries())
       .map(([label, monthWeeks]) => ({
         label,
-        weeks: monthWeeks.sort((a, b) => getWeekStartDay(a.week_key) - getWeekStartDay(b.week_key))
+        weeks: monthWeeks.sort((a, b) => a.week_key.localeCompare(b.week_key))
       }))
       .sort((a, b) => {
         const aDate = parseMonthLabelToDate(a.label)?.getTime() || 0;
@@ -505,8 +473,10 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
   const weekViews = useMemo<WeekViewModel[]>(() => {
     if (!activeMonth) return [];
 
-    return WEEK_OPTIONS.map((option) => {
+    return WEEK_OPTIONS.flatMap((option) => {
       const week = activeMonth.weeks.find((item) => item.week_key === option.value) || null;
+      // Skip week 5 in months with only four Mondays, unless something was already planned there.
+      if (!week && !isPlanWeekInMonth(activeMonth.label, option.value)) return [];
 
       if (!week) {
         return {

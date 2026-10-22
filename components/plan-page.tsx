@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
+import { dayHeading } from "@/lib/plan/dates";
 import { buildPlanMonths, planDayOrder, planWeekOrder } from "@/lib/plan/model";
 import { PlanCard } from "@/lib/supabase/plan-data";
 import { PlannedDay, PlannedWeek } from "@/lib/types";
@@ -18,32 +19,8 @@ type DisplayEntry = {
   alternatives: PlanCard[];
 };
 
-const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
-
 function modeLinkClass(active: boolean) {
   return "rounded-full px-4 py-2 text-sm font-medium transition duration-200";
-}
-
-function parseMonthLabel(label: string) {
-  const date = new Date(label);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-}
-
-function dayHeading(monthLabel: string, week: PlannedWeek, day: PlannedDay) {
-  const date = parseMonthLabel(monthLabel);
-  const month = date ? monthNames[date.getMonth()] : "Plan";
-  const weekBase = {
-    week_1: 1,
-    week_2: 8,
-    week_3: 15,
-    week_4: 22,
-    week_5: 29
-  }[week];
-  const dayOffset = planDayOrder.indexOf(day);
-  const numericDay = weekBase + Math.max(dayOffset, 0);
-
-  return `${day.toUpperCase()} · ${month} ${numericDay}`;
 }
 
 function countLabel(value: number) {

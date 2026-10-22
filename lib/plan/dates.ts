@@ -38,55 +38,56 @@ export function monthLabelToSortDate(monthLabel: string | null | undefined) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-export function weekRangeLabel(monthLabel: string, weekKey: PlannedWeek) {
-  const date = parseMonthLabelToDate(monthLabel);
-  if (!date) return "Monday - Thursday";
+const weekIndex: Record<PlannedWeek, number> = {
+  week_1: 0,
+  week_2: 1,
+  week_3: 2,
+  week_4: 3,
+  week_5: 4
+};
 
-  const monthShort = date.toLocaleDateString("en-US", { month: "short" });
-  const startDay = {
-    week_1: 1,
-    week_2: 8,
-    week_3: 15,
-    week_4: 22,
-    week_5: 29
-  }[weekKey];
-  const endDay = Math.min(startDay + 3, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate());
+// Week N of a month starts on the N-th Monday of that month, so every
+// Monday–Thursday slot maps to a real calendar day and no two months overlap.
+// Thursday of the last week may spill into the next month (e.g. Mon 29 → Thu 2).
+export function planWeekMonday(monthLabel: string | null | undefined, weekKey: PlannedWeek) {
+  const monthStart = parseMonthLabelToDate(monthLabel);
+  if (!monthStart) return null;
 
-  return `${monthShort} ${startDay} - ${monthShort} ${endDay}`;
+  const firstMondayOffset = (8 - monthStart.getDay()) % 7;
+  return new Date(monthStart.getFullYear(), monthStart.getMonth(), 1 + firstMondayOffset + weekIndex[weekKey] * 7);
 }
 
-export function dayHeading(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
-  const date = parseMonthLabelToDate(monthLabel);
-  const monthShort = date ? date.toLocaleDateString("en-US", { month: "short" }) : "Plan";
-  const startDay = {
-    week_1: 1,
-    week_2: 8,
-    week_3: 15,
-    week_4: 22,
-    week_5: 29
-  }[weekKey];
-  const numericDay = startDay + plannerDayOrder.indexOf(dayKey);
-
-  return `${dayKey.toUpperCase()} · ${monthShort} ${numericDay}`;
+// Week 5 only exists in months that have five Mondays.
+export function isPlanWeekInMonth(monthLabel: string | null | undefined, weekKey: PlannedWeek) {
+  const monthStart = parseMonthLabelToDate(monthLabel);
+  const monday = planWeekMonday(monthLabel, weekKey);
+  if (!monthStart || !monday) return true;
+  return monday.getMonth() === monthStart.getMonth();
 }
 
 export function plannedDayDate(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
-  const date = parseMonthLabelToDate(monthLabel);
-  if (!date) return null;
+  const monday = planWeekMonday(monthLabel, weekKey);
+  if (!monday) return null;
 
-  const startDay = {
-    week_1: 1,
-    week_2: 8,
-    week_3: 15,
-    week_4: 22,
-    week_5: 29
-  }[weekKey];
-  const numericDay = startDay + plannerDayOrder.indexOf(dayKey);
-  if (numericDay < 1) return null;
-
-  return new Date(date.getFullYear(), date.getMonth(), numericDay);
+  return new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + plannerDayOrder.indexOf(dayKey));
 }
 
+function monthDayEn(date: Date) {
+  return `${date.toLocaleDateString("en-US", { month: "short" })} ${date.getDate()}`;
+}
+
+export function weekRangeLabel(monthLabel: string, weekKey: PlannedWeek) {
+  const start = plannedDayDate(monthLabel, weekKey, "monday");
+  const end = plannedDayDate(monthLabel, weekKey, "thursday");
+  if (!start || !end) return "Monday - Thursday";
+
+  return `${monthDayEn(start)} - ${monthDayEn(end)}`;
+}
+
+export function dayHeading(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
+  const date = plannedDayDate(monthLabel, weekKey, dayKey);
+  return date ? `${dayKey.toUpperCase()} · ${monthDayEn(date)}` : dayKey.toUpperCase();
+}
 export function plannedDayIso(monthLabel: string, weekKey: PlannedWeek, dayKey: PlannedDay) {
   const date = plannedDayDate(monthLabel, weekKey, dayKey);
   if (!date) return null;

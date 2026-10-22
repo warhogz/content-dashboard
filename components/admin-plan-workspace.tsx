@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useMemo, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { ProjectSegmentedToggle } from "@/components/project-segmented-toggle";
 import { useToast } from "@/components/ui/toast";
 import { mergeCatalogValues } from "@/lib/plan/catalogs";
 import { getPlannedMonthOptions, PLAN_WEEK_OPTIONS } from "@/lib/plan/config";
-import { dayHeading, plannerDayOrder } from "@/lib/plan/dates";
+import { dayHeading, isPlanWeekInMonth, plannerDayOrder, weekRangeLabel } from "@/lib/plan/dates";
 import { type AdminPlannerData, type PlannerLibraryCard, type PlannerResolvedEntry } from "@/lib/supabase/planner-data";
 import { clearPlanWeekAction, setPlanEntryAction, updatePlannerCardMetadataAction } from "@/lib/supabase/planner-actions";
 import { CardTypeRow, PlannedDay, PlannedWeek, ProjectKey, StatusRow } from "@/lib/types";
@@ -273,6 +273,19 @@ export function AdminPlanWorkspace({
     return weekCards.find((week) => week.week_key === selectedWeek) || null;
   }, [selectedWeek, weekCards]);
 
+  // Week 5 only exists in months with five Mondays (or when something is already planned there).
+  const visibleWeekOptions = useMemo(
+    () =>
+      PLAN_WEEK_OPTIONS.filter(
+        (option) => isPlanWeekInMonth(effectiveMonth, option.value) || weekCards.some((week) => week.week_key === option.value)
+      ),
+    [effectiveMonth, weekCards]
+  );
+
+  useEffect(() => {
+    if (!visibleWeekOptions.some((option) => option.value === selectedWeek)) setSelectedWeek("week_1");
+  }, [visibleWeekOptions, selectedWeek]);
+
   const activeEntries = activeWeek?.entries || [];
   const usedCardIds = new Set(activeEntries.map((entry) => entry.card_id));
   const mainCards = plannerDayOrder
@@ -465,7 +478,7 @@ export function AdminPlanWorkspace({
           </Select>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {PLAN_WEEK_OPTIONS.map((option) => {
+            {visibleWeekOptions.map((option) => {
               const summary = weekCards.find((week) => week.week_key === option.value);
               const active = selectedWeek === option.value;
 
@@ -483,6 +496,9 @@ export function AdminPlanWorkspace({
                 >
                   <div className="text-sm font-semibold" style={{ color: "var(--theme-text)" }}>
                     {option.label}
+                  </div>
+                  <div className="mt-0.5 text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                    {weekRangeLabel(effectiveMonth, option.value)}
                   </div>
                   <div className="mt-1 text-xs" style={{ color: "var(--theme-text-muted)" }}>
                     {summary ? `${summary.score.total}% · ${summary.postsCount}/4 planned` : "No plan yet"}

@@ -1,5 +1,6 @@
 import { PlannedDay, PlannedWeek } from "@/lib/types";
 import { PlanCard } from "@/lib/supabase/plan-data";
+import { weekRangeLabel } from "@/lib/plan/dates";
 
 const monthNames = [
   "January",
@@ -83,25 +84,6 @@ function parseMonthLabel(label: string | null | undefined) {
   return new Date(year, monthIndex, 1);
 }
 
-function buildRangeLabel(label: string, week: PlannedWeek) {
-  const date = parseMonthLabel(label);
-  if (!date) return "Monday - Thursday";
-
-  const monthShort = date.toLocaleDateString("en-US", { month: "short" });
-  const baseDay = {
-    week_1: 1,
-    week_2: 8,
-    week_3: 15,
-    week_4: 22,
-    week_5: 29
-  }[week];
-
-  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  const endDay = Math.min(baseDay + 3, lastDay);
-
-  return `${monthShort} ${baseDay} - ${monthShort} ${endDay}`;
-}
-
 function summarizeCards(cards: PlanCard[], key: "project_name" | "room_zone" | "content_category") {
   const counts = new Map<string, number>();
 
@@ -146,7 +128,7 @@ export function buildPlanMonths(cards: PlanCard[]) {
         return {
           week,
           label: week.replace("week_", "Week "),
-          rangeLabel: buildRangeLabel(label, week),
+          rangeLabel: weekRangeLabel(label, week),
           selectedCount: visibleCards.length,
           projectSummary: summarizeCards(visibleCards, "project_name"),
           roomSummary: summarizeCards(visibleCards, "room_zone"),
