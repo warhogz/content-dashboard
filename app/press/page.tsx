@@ -1,7 +1,7 @@
-import { MediaDashboard } from "@/components/media-dashboard";
+﻿import { MediaDashboard } from "@/components/media-dashboard";
 import { getMediaOutletsData } from "@/lib/supabase/data";
 
-export default async function MediaPage() {
+export default async function PressPage() {
   const { outlets } = await getMediaOutletsData();
 
   return (

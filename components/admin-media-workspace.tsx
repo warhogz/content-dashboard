@@ -58,7 +58,7 @@ export function AdminMediaWorkspace({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <div className="label">Workspace</div>
-            <CardTitle className="mt-2 text-2xl sm:text-3xl">Media CRM</CardTitle>
+            <CardTitle className="mt-2 text-2xl sm:text-3xl">Press CRM</CardTitle>
             <div
               className="mt-4 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border p-1 backdrop-blur-xl"
               style={{ borderColor: "var(--theme-border)", background: "var(--theme-surface-soft)", boxShadow: "var(--theme-shadow-lift)" }}
@@ -77,7 +77,7 @@ export function AdminMediaWorkspace({
                   boxShadow: "0 0 0 1px var(--theme-border) inset, 0 10px 28px color-mix(in srgb, var(--theme-accent) 16%, transparent)"
                 }}
               >
-                Media
+                Press
               </span>
               <Link href="/admin/plan" className="rounded-full px-3 py-2 text-sm font-medium transition sm:px-4" style={{ color: "var(--theme-text-muted)" }}>
                 Plan
@@ -88,7 +88,7 @@ export function AdminMediaWorkspace({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:min-w-[320px]">
             {[
               { label: "Total", value: summary.total },
-              { label: "Reach", value: summary.audience },
+              { label: summary.reachUnit ? `Reach · ${summary.reachUnit}` : "Reach", value: summary.reachValue },
               { label: "Active", value: summary.active, wide: true }
             ].map((item) => (
               <div

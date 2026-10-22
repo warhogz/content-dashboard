@@ -5,7 +5,16 @@ import { AlertTriangle, CalendarClock, Globe, Instagram, Languages, Link2, MapPi
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { resolveCardPreviewUrl } from "@/lib/dropbox-links";
-import { deadlineToneColor, formatAudience, getOfferDeadline, hostLabel, mediaStatusColorMap, splitLines } from "@/lib/media";
+import {
+  audienceUnit,
+  deadlineToneColor,
+  formatAudience,
+  formatAudienceWithUnit,
+  getOfferDeadline,
+  hostLabel,
+  mediaStatusColorMap,
+  splitLines
+} from "@/lib/media";
 import { MediaOutletRow } from "@/lib/types";
 
 type LinkAction = { key: string; href: string; label: string; icon: typeof Instagram };
@@ -87,7 +96,7 @@ function clamp(lines: number) {
 
 export function MediaOutletCard({ outlet, interactive = true }: { outlet: MediaOutletRow; interactive?: boolean }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const audience = formatAudience(outlet.audience);
+  const audience = formatAudienceWithUnit(outlet);
   const deadline = getOfferDeadline(outlet.offer_until);
   const formats = splitLines(outlet.formats);
   const links = outletLinks(outlet);
@@ -124,7 +133,7 @@ export function MediaOutletCard({ outlet, interactive = true }: { outlet: MediaO
         <div className="flex flex-wrap gap-2">
           <Chip>
             <Users className="h-3.5 w-3.5 shrink-0" />
-            {audience ? `${audience} аудитория` : "Аудитория не указана"}
+            {audience || "Аудитория не указана"}
           </Chip>
           {deadline ? (
             <Chip color={deadlineToneColor[deadline.tone]}>
@@ -295,7 +304,10 @@ export function MediaOutletDetails({
           </DetailSection>
 
           <DetailSection icon={Users} title="Аудитория">
-            <div className="text-2xl font-semibold tracking-tight">{audience || "—"}</div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tracking-tight">{audience || "—"}</span>
+              {audience ? <span style={{ color: "var(--theme-text-muted)" }}>{audienceUnit(outlet.audience_type)}</span> : null}
+            </div>
             {outlet.audience_note ? <div style={{ color: "var(--theme-text-muted)" }}>{outlet.audience_note}</div> : null}
           </DetailSection>
         </div>

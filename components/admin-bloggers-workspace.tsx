@@ -97,8 +97,8 @@ export function AdminBloggersWorkspace({
               >
                 Bloggers
               </span>
-              <Link href="/admin/media" className="rounded-full px-4 py-2 text-sm font-medium transition" style={{ color: "var(--theme-text-muted)" }}>
-                Media
+              <Link href="/admin/press" className="rounded-full px-4 py-2 text-sm font-medium transition" style={{ color: "var(--theme-text-muted)" }}>
+                Press
               </Link>
               <Link href="/admin/plan" className="rounded-full px-4 py-2 text-sm font-medium transition" style={{ color: "var(--theme-text-muted)" }}>
                 Plan

@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
-import { mediaStatusColorMap, mediaStatusPresets, parseMediaOffer } from "@/lib/media";
+import { mediaAudienceTypes, mediaStatusColorMap, mediaStatusPresets, parseMediaOffer } from "@/lib/media";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { upsertMediaOutletAction } from "@/lib/supabase/media-actions";
-import { BloggerStatusColor, MediaOutletRow } from "@/lib/types";
+import { BloggerStatusColor, MediaAudienceType, MediaOutletRow } from "@/lib/types";
 
 type Draft = Record<
   | "name"
@@ -37,7 +37,7 @@ type Draft = Record<
   | "status"
   | "notes",
   string
-> & { status_color: BloggerStatusColor };
+> & { status_color: BloggerStatusColor; audience_type: MediaAudienceType };
 
 function toDraft(outlet: MediaOutletRow | null): Draft {
   return {
@@ -47,6 +47,7 @@ function toDraft(outlet: MediaOutletRow | null): Draft {
     languages: outlet?.languages || "",
     founded_year: outlet?.founded_year ? String(outlet.founded_year) : "",
     audience: outlet?.audience ? String(outlet.audience) : "",
+    audience_type: outlet?.audience_type || "followers",
     audience_note: outlet?.audience_note || "",
     instagram_url: outlet?.instagram_url || "",
     website_url: outlet?.website_url || "",
@@ -138,7 +139,7 @@ export function AdminMediaEditor({
   }, [outlet, open]);
 
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
-  const bind = (key: Exclude<keyof Draft, "status_color">) => ({
+  const bind = (key: Exclude<keyof Draft, "status_color" | "audience_type">) => ({
     name: key,
     value: draft[key],
     onChange: (event: { target: { value: string } }) => set(key)(event.target.value)
@@ -152,6 +153,7 @@ export function AdminMediaEditor({
     languages: draft.languages || null,
     founded_year: toNumber(draft.founded_year),
     audience: toNumber(draft.audience),
+    audience_type: draft.audience_type,
     audience_note: draft.audience_note || null,
     instagram_url: draft.instagram_url || null,
     website_url: draft.website_url || null,
@@ -276,6 +278,31 @@ export function AdminMediaEditor({
               <Field label="Аудитория" hint="число">
                 <Input {...bind("audience")} inputMode="numeric" placeholder="1900000" />
               </Field>
+              <div className="grid gap-1.5 sm:col-span-2">
+                <span className="text-xs font-medium" style={{ color: "var(--theme-text-muted)" }}>
+                  Что это за число
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {mediaAudienceTypes.map((item) => {
+                    const active = draft.audience_type === item.value;
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => set("audience_type")(item.value)}
+                        className="rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                        style={{
+                          borderColor: active ? "color-mix(in srgb, var(--theme-accent) 56%, var(--theme-border))" : "var(--theme-border)",
+                          color: active ? "var(--theme-text)" : "var(--theme-text-muted)",
+                          background: active ? "var(--theme-surface-strong)" : "var(--theme-surface-soft)"
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="sm:col-span-2">
                 <Field label="Комментарий к аудитории">
                   <Input {...bind("audience_note")} placeholder="Статистику охватов пока не предоставили" />

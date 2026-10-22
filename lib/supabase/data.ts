@@ -9,6 +9,7 @@ import {
   BloggerStatusColor,
   CardTypeRow,
   ContentCard,
+  MediaAudienceType,
   MediaOutletRow,
   PlanMetadataCatalogs,
   PlannedDay,
@@ -221,6 +222,7 @@ function normalizeBloggers(bloggers: BloggerRow[] | null | undefined) {
 }
 
 const MEDIA_STATUS_COLORS = new Set<BloggerStatusColor>(["gray", "blue", "green", "yellow", "orange", "red", "purple"]);
+const MEDIA_AUDIENCE_TYPES = new Set<MediaAudienceType>(["followers", "monthly_views", "email", "print"]);
 
 function normalizeMediaOutlets(outlets: MediaOutletRow[] | null | undefined): MediaOutletRow[] {
   if (!outlets) return [];
@@ -240,6 +242,7 @@ function normalizeMediaOutlets(outlets: MediaOutletRow[] | null | undefined): Me
     languages: text(outlet.languages),
     founded_year: num(outlet.founded_year),
     audience: num(outlet.audience),
+    audience_type: MEDIA_AUDIENCE_TYPES.has(outlet.audience_type) ? outlet.audience_type : "followers",
     audience_note: text(outlet.audience_note),
     instagram_url: text(outlet.instagram_url),
     website_url: text(outlet.website_url),

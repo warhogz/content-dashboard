@@ -239,14 +239,14 @@ export function PublicDashboard({
                 Bloggers
               </Link>
               <Link
-                href="/media"
+                href="/press"
                 className={modeLinkClass(false)}
                 style={{
                   color: "var(--theme-text-muted)",
                   background: "transparent"
                 }}
               >
-                Media
+                Press
               </Link>
               <Link
                 href="/plan"

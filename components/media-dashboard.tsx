@@ -7,7 +7,7 @@ import { MediaOutletCard } from "@/components/media-outlet-card";
 import { SearchBar } from "@/components/search-bar";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { formatAudience, getOfferDeadline, isOfferActive } from "@/lib/media";
+import { audienceTotals, getOfferDeadline, isOfferActive } from "@/lib/media";
 import { MediaOutletRow } from "@/lib/types";
 
 export type MediaSort = "recent" | "audience" | "deadline";
@@ -94,10 +94,16 @@ export function MediaFilterControls({ filters }: { filters: ReturnType<typeof us
 }
 
 export function mediaSummary(outlets: MediaOutletRow[]) {
-  const totalAudience = outlets.reduce((sum, item) => sum + (item.audience || 0), 0);
+  const reach = audienceTotals(outlets);
   return {
     total: outlets.length,
-    audience: formatAudience(totalAudience) || "0",
+    // Largest metric is the headline; the rest go underneath with their own units.
+    reachValue: reach[0]?.value || "0",
+    reachUnit: reach[0]?.unit || "",
+    reachRest: reach
+      .slice(1)
+      .map((item) => `${item.value} ${item.unit}`)
+      .join(" · "),
     active: outlets.filter((item) => item.offer_until && isOfferActive(item)).length
   };
 }
@@ -117,13 +123,13 @@ export function MediaDashboard({ outlets }: { outlets: MediaOutletRow[] }) {
         }}
       >
         <div className="flex flex-col items-center gap-6 text-center">
-          <div className="label">Media</div>
+          <div className="label">Press</div>
 
           <div className="grid w-full gap-3 sm:grid-cols-3">
             {[
-              { label: "Изданий", value: summary.total, color: "#3b82f6" },
-              { label: "Суммарная аудитория", value: summary.audience, color: "#d946ef" },
-              { label: "Активных предложений", value: summary.active, color: "#22c55e" }
+              { label: "Изданий", value: summary.total, color: "#3b82f6", unit: "", note: "" },
+              { label: "Охват", value: summary.reachValue, color: "#d946ef", unit: summary.reachUnit, note: summary.reachRest },
+              { label: "Активных предложений", value: summary.active, color: "#22c55e", unit: "", note: "" }
             ].map((item) => (
               <div
                 key={item.label}
@@ -138,11 +144,23 @@ export function MediaDashboard({ outlets }: { outlets: MediaOutletRow[] }) {
                   {item.label}
                 </div>
                 <div className="mt-3 flex items-end justify-between gap-4">
-                  <div className="text-3xl font-semibold sm:text-4xl" style={{ color: "var(--theme-text)" }}>
-                    {item.value}
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <span className="text-3xl font-semibold sm:text-4xl" style={{ color: "var(--theme-text)" }}>
+                      {item.value}
+                    </span>
+                    {item.unit ? (
+                      <span className="truncate text-sm" style={{ color: "var(--theme-text-muted)" }}>
+                        {item.unit}
+                      </span>
+                    ) : null}
                   </div>
-                  <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: item.color, boxShadow: `0 0 18px ${item.color}` }} />
+                  <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: item.color, boxShadow: `0 0 18px ${item.color}` }} />
                 </div>
+                {item.note ? (
+                  <div className="mt-1.5 truncate text-xs" style={{ color: "var(--theme-text-muted)" }}>
+                    + {item.note}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -182,7 +200,7 @@ export function MediaDashboard({ outlets }: { outlets: MediaOutletRow[] }) {
                   boxShadow: "0 0 0 1px var(--theme-border) inset, 0 10px 28px color-mix(in srgb, var(--theme-accent) 16%, transparent)"
                 }}
               >
-                Media
+                Press
               </span>
               <Link href="/plan" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
                 Plan
@@ -208,7 +226,7 @@ export function MediaDashboard({ outlets }: { outlets: MediaOutletRow[] }) {
       ) : (
         <EmptyState
           title={outlets.length ? "Издания не найдены" : "Пока нет изданий"}
-          description={outlets.length ? "Попробуй другой статус или поисковый запрос." : "Добавь первое издание в админке — раздел Media."}
+          description={outlets.length ? "Попробуй другой статус или поисковый запрос." : "Добавь первое издание в админке — раздел Press."}
         />
       )}
     </div>

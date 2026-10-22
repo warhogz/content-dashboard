@@ -1,4 +1,34 @@
-import { BloggerStatusColor, MediaOutletRow } from "@/lib/types";
+import { BloggerStatusColor, MediaAudienceType, MediaOutletRow } from "@/lib/types";
+
+export const mediaAudienceTypes: Array<{ value: MediaAudienceType; label: string; unit: string }> = [
+  { value: "followers", label: "Подписчики", unit: "подписчиков" },
+  { value: "monthly_views", label: "Просмотры в месяц", unit: "просм./мес" },
+  { value: "email", label: "Email-база", unit: "в email-базе" },
+  { value: "print", label: "Тираж", unit: "тираж" }
+];
+
+export function audienceUnit(type: MediaAudienceType) {
+  return mediaAudienceTypes.find((item) => item.value === type)?.unit || "аудитория";
+}
+
+export function formatAudienceWithUnit(outlet: Pick<MediaOutletRow, "audience" | "audience_type">) {
+  const value = formatAudience(outlet.audience);
+  return value ? `${value} ${audienceUnit(outlet.audience_type)}` : null;
+}
+
+// Sums are kept per metric type: followers and monthly site views must not be added together.
+export function audienceTotals(outlets: MediaOutletRow[]) {
+  const totals = new Map<MediaAudienceType, number>();
+  for (const outlet of outlets) {
+    if (!outlet.audience) continue;
+    totals.set(outlet.audience_type, (totals.get(outlet.audience_type) || 0) + outlet.audience);
+  }
+
+  return mediaAudienceTypes
+    .filter((item) => totals.has(item.value))
+    .map((item) => ({ type: item.value, unit: item.unit, total: totals.get(item.value) || 0, value: formatAudience(totals.get(item.value) || 0) || "0" }))
+    .sort((a, b) => b.total - a.total);
+}
 
 export const mediaStatusColorMap: Record<BloggerStatusColor, string> = {
   gray: "#94a3b8",
@@ -114,6 +144,7 @@ export type MediaDraft = Partial<
     | "name"
     | "founded_year"
     | "audience"
+    | "audience_type"
     | "audience_note"
     | "instagram_url"
     | "website_url"
@@ -205,12 +236,24 @@ export function parseMediaOffer(text: string): MediaDraft {
   const website = urls.find((url) => !/instagram\.com|t\.me|youtube\.com|tiktok\.com/i.test(url));
   if (website) draft.website_url = website;
 
-  const audienceLine = lines.find((line) => /аудитори|подписчик|followers/i.test(line));
-  if (audienceLine) {
-    const audience = audienceLine.match(/([\d]+(?:[.,]\d+)?(?:\s\d{3})*)\s*(млн|тыс|[mkк])(?![a-zа-яё])/i);
-    if (audience) draft.audience = parseAudienceNumber(audience[1], audience[2]) ?? undefined;
-    const sentences = audienceLine.replace(/^Аудитория:\s*/i, "").split(/(?<=\.)\s+/);
+  // The first matching kind wins: followers, then monthly views, email base, print run.
+  const audienceKinds: Array<[MediaAudienceType, RegExp]> = [
+    ["followers", /подписчик|followers/i],
+    ["monthly_views", /просмотр|посещени|визит|views|visits/i],
+    ["email", /email|e-mail|рассылк/i],
+    ["print", /тираж|circulation/i]
+  ];
+  const audienceNumber = /(\d+(?:[.,]\d+)?(?:\s\d{3})*)\s*(млн|тыс|[mkк])(?![a-zа-яё])/i;
+  for (const [kind, pattern] of audienceKinds) {
+    const line = lines.find((item) => pattern.test(item) && audienceNumber.test(item));
+    const match = line?.match(audienceNumber);
+    if (!line || !match) continue;
+
+    draft.audience = parseAudienceNumber(match[1], match[2]) ?? undefined;
+    draft.audience_type = kind;
+    const sentences = line.replace(/^[—–\-•\s]*(Аудитория|Сайт)[^:]*:\s*/i, "").split(/(?<=\.)\s+/);
     if (sentences.length > 1) draft.audience_note = sentences.slice(1).join(" ").replace(/\.$/, "");
+    break;
   }
 
   const formats = sectionLines(lines, /формат/i);

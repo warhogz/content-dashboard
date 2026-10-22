@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServiceClient, hasSupabase } from "@/lib/supabase/server";
-import { type BloggerStatusColor, type MediaOutletRow } from "@/lib/types";
+import { type BloggerStatusColor, type MediaAudienceType, type MediaOutletRow } from "@/lib/types";
 
 type ActionResult = { ok: true; message: string } | { ok: false; message: string };
 
@@ -76,9 +76,15 @@ function parseStatusColor(formData: FormData): BloggerStatusColor {
   return "gray";
 }
 
+function parseAudienceType(formData: FormData): MediaAudienceType {
+  const value = String(formData.get("audience_type") || "followers").trim();
+  if (value === "monthly_views" || value === "email" || value === "print") return value;
+  return "followers";
+}
+
 async function refreshMedia() {
-  revalidatePath("/media");
-  revalidatePath("/admin/media");
+  revalidatePath("/press");
+  revalidatePath("/admin/press");
 }
 
 async function loadExistingOutlet(
@@ -108,6 +114,7 @@ export async function upsertMediaOutletAction(formData: FormData): Promise<Actio
     languages: parseOptionalText(formData, "languages"),
     founded_year: parseOptionalInt(formData, "founded_year"),
     audience: parseOptionalInt(formData, "audience"),
+    audience_type: parseAudienceType(formData),
     audience_note: parseOptionalText(formData, "audience_note"),
     instagram_url: parseOptionalText(formData, "instagram_url"),
     website_url: parseOptionalText(formData, "website_url"),

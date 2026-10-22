@@ -95,6 +95,8 @@ export interface BloggerRow {
   updated_at?: string;
 }
 
+export type MediaAudienceType = "followers" | "monthly_views" | "email" | "print";
+
 export interface MediaOutletRow {
   id: string;
   name: string;
@@ -103,6 +105,7 @@ export interface MediaOutletRow {
   languages: string | null;
   founded_year: number | null;
   audience: number | null;
+  audience_type: MediaAudienceType;
   audience_note: string | null;
   instagram_url: string | null;
   website_url: string | null;
