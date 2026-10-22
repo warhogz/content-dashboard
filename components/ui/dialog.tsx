@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,9 +20,10 @@ export function Dialog({
     return () => window.removeEventListener("keydown", onEsc);
   }, [open, onOpenChange]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portal to <body>: <main> is its own stacking context (z-index: 1) and would sit under the sticky topbar.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <button aria-label="Закрыть" className="absolute inset-0 backdrop-blur-2xl" style={{ background: "var(--theme-overlay)" }} onClick={() => onOpenChange(false)} />
       <div className={cn("relative z-10 w-full px-0 sm:max-w-4xl sm:px-4", className)}>
@@ -51,6 +53,7 @@ export function Dialog({
           <div className="max-h-[85vh] overflow-y-auto p-5 sm:p-6">{children}</div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

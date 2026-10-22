@@ -198,6 +198,9 @@ export function PlanPage({ cards }: { cards: PlanCard[] }) {
               <Link href="/bloggers" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
                 Bloggers
               </Link>
+              <Link href="/media" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
+                Media
+              </Link>
               <span
                 className={modeLinkClass(true)}
                 style={{

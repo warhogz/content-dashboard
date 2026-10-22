@@ -405,6 +405,9 @@ export function AdminPlanWorkspace({
               <Link href="/admin/bloggers" className="rounded-full px-4 py-2 text-sm font-medium transition" style={navPill(false)}>
                 Bloggers
               </Link>
+              <Link href="/admin/media" className="rounded-full px-4 py-2 text-sm font-medium transition" style={navPill(false)}>
+                Media
+              </Link>
               <span className="rounded-full px-4 py-2 text-sm font-medium" style={navPill(true)}>
                 Plan
               </span>

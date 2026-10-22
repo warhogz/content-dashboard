@@ -95,6 +95,33 @@ export interface BloggerRow {
   updated_at?: string;
 }
 
+export interface MediaOutletRow {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  region: string | null;
+  languages: string | null;
+  founded_year: number | null;
+  audience: number | null;
+  audience_note: string | null;
+  instagram_url: string | null;
+  website_url: string | null;
+  extra_url: string | null;
+  formats: string | null;
+  price: string | null;
+  price_note: string | null;
+  price_alt: string | null;
+  price_alt_note: string | null;
+  payment_terms: string | null;
+  offer_until: string | null;
+  open_questions: string | null;
+  status: string | null;
+  status_color: BloggerStatusColor;
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface PlanWeekRow {
   id: string;
   project_key: ProjectKey;

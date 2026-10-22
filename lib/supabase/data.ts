@@ -9,6 +9,7 @@ import {
   BloggerStatusColor,
   CardTypeRow,
   ContentCard,
+  MediaOutletRow,
   PlanMetadataCatalogs,
   PlannedDay,
   PlannedWeek,
@@ -219,6 +220,44 @@ function normalizeBloggers(bloggers: BloggerRow[] | null | undefined) {
   }));
 }
 
+const MEDIA_STATUS_COLORS = new Set<BloggerStatusColor>(["gray", "blue", "green", "yellow", "orange", "red", "purple"]);
+
+function normalizeMediaOutlets(outlets: MediaOutletRow[] | null | undefined): MediaOutletRow[] {
+  if (!outlets) return [];
+
+  const text = (value: string | null | undefined) => value?.trim() || null;
+  const num = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  };
+
+  return outlets.map((outlet) => ({
+    ...outlet,
+    name: outlet.name?.trim() || "Без названия",
+    logo_url: outlet.logo_url || null,
+    region: text(outlet.region),
+    languages: text(outlet.languages),
+    founded_year: num(outlet.founded_year),
+    audience: num(outlet.audience),
+    audience_note: text(outlet.audience_note),
+    instagram_url: text(outlet.instagram_url),
+    website_url: text(outlet.website_url),
+    extra_url: text(outlet.extra_url),
+    formats: text(outlet.formats),
+    price: text(outlet.price),
+    price_note: text(outlet.price_note),
+    price_alt: text(outlet.price_alt),
+    price_alt_note: text(outlet.price_alt_note),
+    payment_terms: text(outlet.payment_terms),
+    offer_until: text(outlet.offer_until),
+    open_questions: text(outlet.open_questions),
+    status: text(outlet.status),
+    status_color: MEDIA_STATUS_COLORS.has(outlet.status_color) ? outlet.status_color : "gray",
+    notes: text(outlet.notes)
+  }));
+}
+
 export async function getDashboardData() {
   if (!hasSupabase()) return getMockData();
 
@@ -409,4 +448,23 @@ export async function getAdminBloggersData() {
   return {
     bloggers: normalizeBloggers(bloggers) ?? getMockData().bloggers ?? []
   };
+}
+
+export async function getMediaOutletsData() {
+  if (!hasSupabase()) return { outlets: [] as MediaOutletRow[] };
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { outlets: [] as MediaOutletRow[] };
+
+  const outlets = await safeQuery<MediaOutletRow[]>(
+    async (signal) =>
+      await supabase
+        .from("media_outlets")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .abortSignal(signal),
+    "media-outlets"
+  );
+
+  return { outlets: normalizeMediaOutlets(outlets) };
 }

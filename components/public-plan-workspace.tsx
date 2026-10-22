@@ -705,6 +705,9 @@ export function PublicPlanWorkspace({ weeks }: { weeks: PlannerWeekSummary[] }) 
               <Link href="/bloggers" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
                 Блогеры
               </Link>
+              <Link href="/media" className={modeLinkClass(false)} style={{ color: "var(--theme-text-muted)", background: "transparent" }}>
+                Издания
+              </Link>
               <span
                 className={modeLinkClass(true)}
                 style={{
